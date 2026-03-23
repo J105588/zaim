@@ -198,11 +198,26 @@ body {
   transform: scale(1.05);
 }
 
+.validation-msg {
+  color: #ff4c4c;
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: 10px;
+  font-weight: 500;
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
 .input-container {
   margin-top: 10px;
 }
 
-input[type="number"] {
+.input-container input {
   width: 100%;
   background: transparent;
   border: none;
@@ -216,7 +231,7 @@ input[type="number"] {
   transition: border-color 0.3s;
 }
 
-input[type="number"]:focus {
+.input-container input:focus {
   border-bottom-color: var(--accent);
 }
 
@@ -229,6 +244,13 @@ input[type="number"]:focus {
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.2s;
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  transform: scale(0.98);
 }
 
 /* History Screen */
@@ -330,17 +352,22 @@ input[type="number"]:focus {
 
 /* Success Screen */
 .success-screen {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  gap: 20px;
-  animation: fadeIn 0.4s;
+  justify-content: center;
+  height: 100%;
+  gap: 30px;
+  animation: zoomIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .success-icon {
-  font-size: 4rem;
+  filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.3));
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 /* Misc */

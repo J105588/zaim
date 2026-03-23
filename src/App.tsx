@@ -36,6 +36,35 @@ function App() {
     }
   }, [isLoggedIn])
 
+  // Real-time & Periodic Updates
+  useEffect(() => {
+    if (!isLoggedIn) return
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('transactions-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        () => {
+          fetchBalance()
+          fetchHistory(selectedDate)
+        }
+      )
+      .subscribe()
+
+    // Fallback polling (60s)
+    const pollId = setInterval(() => {
+      fetchBalance()
+      fetchHistory(selectedDate)
+    }, 60000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(pollId)
+    }
+  }, [isLoggedIn, selectedDate])
+
   const fetchCategories = async () => {
     const { data, error } = await supabase
       .from('categories')
@@ -120,15 +149,28 @@ function App() {
     }
   }
 
+  const handleAmountChange = (val: string) => {
+    // Remove all non-numeric characters except for the decimal point
+    const cleanVal = val.replace(/[^\d.]/g, '')
+    const parts = cleanVal.split('.')
+    let formatted = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    if (parts.length > 1) {
+      formatted += '.' + parts[1]
+    }
+    setAmount(formatted)
+  }
+
   const handleSubmit = async () => {
     if (!amount || (type === 'expense' && !selectedCategory)) return
 
     setIsSubmitting(true)
+    const rawAmount = Number(amount.replace(/,/g, ''))
+    
     const { error } = await supabase.from('transactions').insert([
       {
         type,
         category_id: type === 'expense' ? selectedCategory : null,
-        amount: Number(amount),
+        amount: rawAmount,
       },
     ])
 
@@ -204,7 +246,9 @@ function App() {
       <main className="main-content">
         {showSuccess ? (
           <div className="success-screen">
-            <div className="success-icon">✅</div>
+            <div className="success-icon">
+              <Icons.CheckCircle2 size={80} strokeWidth={1.5} color="#00ff88" />
+            </div>
             <h2>{t('success')}</h2>
           </div>
         ) : view === 'start' ? (
@@ -226,26 +270,33 @@ function App() {
             </div>
             
             {type === 'expense' && (
-              <div className="category-grid">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    className={`category-btn ${selectedCategory === cat.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedCategory(cat.id)}
-                  >
-                    {renderIcon(cat.icon)}
-                    <span>{lang === 'ja' ? cat.name_ja : cat.name_zh}</span>
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="category-grid">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      className={`category-btn ${selectedCategory === cat.id ? 'selected' : ''}`}
+                      onClick={() => setSelectedCategory(cat.id)}
+                    >
+                      {renderIcon(cat.icon)}
+                      <span>{lang === 'ja' ? cat.name_ja : cat.name_zh}</span>
+                    </button>
+                  ))}
+                </div>
+                {!selectedCategory && (
+                  <div className="validation-msg">
+                    {lang === 'ja' ? 'カテゴリーを選択してください' : '请選択类别'}
+                  </div>
+                )}
+              </>
             )}
 
             <div className="input-container">
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => handleAmountChange(e.target.value)}
                 placeholder="0"
                 autoFocus
               />
