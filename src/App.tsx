@@ -35,6 +35,7 @@ function App() {
   const [swipingId, setSwipingId] = useState<string | null>(null)
   const [swipeX, setSwipeX] = useState(0)
   const [startX, setStartX] = useState(0)
+  const [baseX, setBaseX] = useState(0)
 
   const familyPassword = import.meta.env.VITE_FAMILY_PASSWORD || 'family123'
 
@@ -191,39 +192,49 @@ function App() {
 
   const handleTouchStart = (e: React.TouchEvent, id: string) => {
     setStartX(e.touches[0].clientX)
-    setSwipingId(id)
+    if (swipingId === id) {
+      setBaseX(swipeX)
+    } else {
+      setSwipingId(id)
+      setSwipeX(0)
+      setBaseX(0)
+    }
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!swipingId) return
     const currentX = e.touches[0].clientX
     const diff = currentX - startX
-    if (diff < 0) { // Only swipe left
-      setSwipeX(Math.max(diff, -100))
-    }
+    const newX = baseX + diff
+    setSwipeX(Math.min(0, Math.max(newX, -100)))
   }
 
   const handleTouchEnd = () => {
-    if (swipeX <= -70) {
+    if (swipeX <= -50) {
       setSwipeX(-100)
     } else {
       setSwipeX(0)
-      setSwipingId(null)
+      setTimeout(() => setSwipingId(null), 300)
     }
   }
 
   // Mouse support for testing/PC
   const handleMouseDown = (e: React.MouseEvent, id: string) => {
     setStartX(e.clientX)
-    setSwipingId(id)
+    if (swipingId === id) {
+      setBaseX(swipeX)
+    } else {
+      setSwipingId(id)
+      setSwipeX(0)
+      setBaseX(0)
+    }
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!swipingId) return
     const diff = e.clientX - startX
-    if (diff < 0) {
-      setSwipeX(Math.max(diff, -100))
-    }
+    const newX = baseX + diff
+    setSwipeX(Math.min(0, Math.max(newX, -100)))
   }
 
   const handleMouseUp = () => {

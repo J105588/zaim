@@ -286,15 +286,21 @@ body {
 
 .history-nav {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: calc(-20px - env(safe-area-inset-bottom));
+  left: -20px;
+  right: -20px;
   display: flex;
   justify-content: space-between;
-  padding: 20px;
-  background: linear-gradient(to top, var(--panel-bg), transparent);
-  backdrop-filter: blur(10px);
-  z-index: 10;
+  padding: 24px 40px calc(24px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, 
+    #0a0a0a 0%, 
+    #0a0a0a 40%, 
+    rgba(10, 10, 10, 0.9) 70%, 
+    transparent 100%
+  );
+  backdrop-filter: blur(15px);
+  z-index: 100;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .nav-btn {
@@ -354,6 +360,8 @@ body {
   z-index: 1;
   font-weight: bold;
   cursor: pointer;
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
 }
 
 .item-info {
