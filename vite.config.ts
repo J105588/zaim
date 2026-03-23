@@ -14,6 +14,8 @@ export default defineConfig({
         short_name: '財務管理',
         description: '個人用収支報告システム',
         theme_color: '#0a0a0a',
+        display: 'standalone',
+        orientation: 'portrait',
         icons: [
           {
             src: 'pwa-192x192.png',
