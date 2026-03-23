@@ -313,6 +313,12 @@ function App() {
   if (!isLoggedIn) {
     return (
       <div className="login-screen">
+        {showToast && (
+          <div className="toast">
+            <Icons.CheckCircle size={18} />
+            <span>{t('lang_switched')}</span>
+          </div>
+        )}
         <div className="login-card">
           <div className="login-header">
             <div className="login-logo">
@@ -338,6 +344,9 @@ function App() {
               {t('login_btn')}
             </button>
           </div>
+        </div>
+        <div className="lang-toggle" onClick={handleToggleLang}>
+          <Icons.Languages size={20} />
         </div>
       </div>
     )
