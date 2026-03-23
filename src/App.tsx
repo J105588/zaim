@@ -159,7 +159,7 @@ function App() {
       setIsLoggedIn(true)
       localStorage.setItem('isLoggedIn', 'true')
     } else {
-      alert('Password incorrect')
+      alert(t('login_error'))
     }
   }
 
@@ -348,7 +348,7 @@ function App() {
       {showToast && (
         <div className="toast">
           <Icons.CheckCircle size={18} />
-          <span>{lang === 'ja' ? '日本語に切り替えました' : '已切换至简体中文'}</span>
+          <span>{t('lang_switched')}</span>
         </div>
       )}
       <header className="app-header">
@@ -403,7 +403,7 @@ function App() {
                 </div>
                 {!selectedCategory && (
                   <div className="validation-msg">
-                    {lang === 'ja' ? 'カテゴリーを選択してください' : '请選択类别'}
+                    {t('select_category')}
                   </div>
                 )}
               </>
@@ -436,7 +436,10 @@ function App() {
           <div className="history-screen">
             <div className="history-header">
               <button className="icon-btn" onClick={() => setView('start')}><Icons.ArrowLeft size={24} /></button>
-              <h2>{selectedDate.getFullYear()}{lang === 'ja' ? '年' : '.'}{selectedDate.getMonth() + 1}{lang === 'ja' ? '月の収支' : ' ' + t('month_stats')}</h2>
+              <h2>
+                {selectedDate.getFullYear()}{lang === 'ja' || lang === 'zh' ? (lang === 'ja' ? '年' : '年') : '.'}
+                {selectedDate.getMonth() + 1}{lang === 'ja' || lang === 'zh' ? (lang === 'ja' ? '月の収支' : '月收支概览') : ' ' + t('month_stats')}
+              </h2>
             </div>
             
             <div className="history-list">
@@ -474,7 +477,7 @@ function App() {
                       <div className="item-info">
                         <div className="item-date">{new Date(item.created_at).toLocaleDateString()}</div>
                         <div className="item-cat">
-                          {item.type === 'income' ? t('income') : (item as any).categories?.name_ja || t('others')}
+                          {item.type === 'income' ? t('income') : (lang === 'ja' ? (item as any).categories?.name_ja : (item as any).categories?.name_zh) || t('others')}
                         </div>
                       </div>
                       <div className={`item-amount ${item.type}`}>
