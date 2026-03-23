@@ -32,6 +32,9 @@ function App() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date())
+  const [swipingId, setSwipingId] = useState<string | null>(null)
+  const [swipeX, setSwipeX] = useState(0)
+  const [startX, setStartX] = useState(0)
 
   const familyPassword = import.meta.env.VITE_FAMILY_PASSWORD || 'family123'
 
@@ -104,6 +107,30 @@ function App() {
     }
   }
 
+  // Global click/touch listener to reset swipe state when tapping elsewhere
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent | TouchEvent) => {
+      if (!swipingId) return
+
+      // Find if we clicked inside a swipe-item-container
+      const target = e.target as HTMLElement
+      if (!target.closest('.swipe-item-container')) {
+        setSwipeX(0)
+        setTimeout(() => setSwipingId(null), 300)
+      }
+    }
+
+    if (swipingId && swipeX !== 0) {
+      window.addEventListener('mousedown', handleGlobalClick)
+      window.addEventListener('touchstart', handleGlobalClick)
+    }
+
+    return () => {
+      window.removeEventListener('mousedown', handleGlobalClick)
+      window.removeEventListener('touchstart', handleGlobalClick)
+    }
+  }, [swipingId, swipeX])
+
   const fetchHistory = async (date: Date) => {
     const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1)
     const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
@@ -130,7 +157,7 @@ function App() {
       setIsLoggedIn(true)
       localStorage.setItem('isLoggedIn', 'true')
     } else {
-      alert('Wrong password')
+      alert('Password incorrect')
     }
   }
 
@@ -154,9 +181,64 @@ function App() {
   const toggleHistory = () => {
     if (view === 'history') {
       setView('start')
+      setSwipingId(null)
+      setSwipeX(0)
     } else {
       fetchHistory(selectedDate)
       setView('history')
+    }
+  }
+
+  const handleTouchStart = (e: React.TouchEvent, id: string) => {
+    setStartX(e.touches[0].clientX)
+    setSwipingId(id)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!swipingId) return
+    const currentX = e.touches[0].clientX
+    const diff = currentX - startX
+    if (diff < 0) { // Only swipe left
+      setSwipeX(Math.max(diff, -100))
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (swipeX <= -70) {
+      setSwipeX(-100)
+    } else {
+      setSwipeX(0)
+      setSwipingId(null)
+    }
+  }
+
+  // Mouse support for testing/PC
+  const handleMouseDown = (e: React.MouseEvent, id: string) => {
+    setStartX(e.clientX)
+    setSwipingId(id)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!swipingId) return
+    const diff = e.clientX - startX
+    if (diff < 0) {
+      setSwipeX(Math.max(diff, -100))
+    }
+  }
+
+  const handleMouseUp = () => {
+    handleTouchEnd()
+  }
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from('transactions').delete().eq('id', id)
+    if (error) {
+      console.error(error)
+    } else {
+      setHistory(prev => prev.filter(item => item.id !== id))
+      fetchBalance()
+      setSwipingId(null)
+      setSwipeX(0)
     }
   }
 
@@ -340,15 +422,39 @@ function App() {
                 </div>
               ) : (
                 history.map((item) => (
-                  <div key={item.id} className="history-item">
-                    <div className="item-info">
-                      <div className="item-date">{new Date(item.created_at).toLocaleDateString()}</div>
-                      <div className="item-cat">
-                        {item.type === 'income' ? t('income') : (item as any).categories?.name_ja || t('others')}
+                  <div 
+                    key={item.id} 
+                    className="swipe-item-container"
+                  >
+                    <button 
+                      className="delete-action"
+                      onClick={() => handleDelete(item.id)}
+                    >
+                      <Icons.Trash2 size={20} />
+                    </button>
+                    <div 
+                      className="history-item"
+                      onTouchStart={(e) => handleTouchStart(e, item.id)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                      onMouseDown={(e) => handleMouseDown(e, item.id)}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUp}
+                      onMouseLeave={handleMouseUp}
+                      style={{ 
+                        transform: swipingId === item.id ? `translateX(${swipeX}px)` : 'translateX(0)',
+                        transition: swipeX === 0 || swipeX === -100 ? 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)' : 'none'
+                      }}
+                    >
+                      <div className="item-info">
+                        <div className="item-date">{new Date(item.created_at).toLocaleDateString()}</div>
+                        <div className="item-cat">
+                          {item.type === 'income' ? t('income') : (item as any).categories?.name_ja || t('others')}
+                        </div>
                       </div>
-                    </div>
-                    <div className={`item-amount ${item.type}`}>
-                      {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
+                      <div className={`item-amount ${item.type}`}>
+                        {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
+                      </div>
                     </div>
                   </div>
                 ))
