@@ -23,5 +23,5 @@ export type Transaction = {
   category_id: string | null
   amount: number
   created_at: string
-  category?: Category -- Joined category data
+  category?: Category // Joined category data
 }

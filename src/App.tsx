@@ -1,29 +1,24 @@
 import { useState, useEffect } from 'react'
-import { supabase } from './lib/supabase'
+import { supabase, type Category, type Transaction } from './lib/supabase'
 import { useI18n } from './hooks/useI18n'
-import { 
-  Utensils, 
-  ShoppingBag, 
-  Car, 
-  Heart, 
-  MoreHorizontal, 
-  Lock, 
-  Languages
-} from 'lucide-react'
+import * as Icons from 'lucide-react'
 import './App.css'
 
-type Category = 'food' | 'daily' | 'transport' | 'entertainment' | 'others'
+type View = 'start' | 'entry' | 'history'
 
 function App() {
-  const { t, toggleLang } = useI18n()
+  const { lang, t, toggleLang } = useI18n()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [password, setPassword] = useState('')
+  const [view, setView] = useState<View>('start')
   const [type, setType] = useState<'income' | 'expense'>('expense')
-  const [category, setCategory] = useState<Category | null>(null)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
-  const [stats, setStats] = useState({ income: 0, expense: 0 })
+  const [balance, setBalance] = useState(0)
+  const [history, setHistory] = useState<Transaction[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [message, setMessage] = useState('')
+  const [showSuccess, setShowSuccess] = useState(false)
 
   const familyPassword = import.meta.env.VITE_FAMILY_PASSWORD || 'family123'
 
@@ -34,11 +29,18 @@ function App() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      fetchStats()
+      fetchCategories()
+      fetchBalance()
     }
   }, [isLoggedIn])
 
-  const fetchStats = async () => {
+  const fetchCategories = async () => {
+    const { data, error } = await supabase.from('categories').select('*').order('name_ja')
+    if (error) console.error(error)
+    else setCategories(data || [])
+  }
+
+  const fetchBalance = async () => {
     const startOfMonth = new Date()
     startOfMonth.setDate(1)
     startOfMonth.setHours(0, 0, 0, 0)
@@ -50,16 +52,22 @@ function App() {
 
     if (error) console.error(error)
     if (data) {
-      const totals = data.reduce(
-        (acc: { income: number; expense: number }, item: any) => {
-          if (item.type === 'income') acc.income += Number(item.amount)
-          else acc.expense += Number(item.amount)
-          return acc
-        },
-        { income: 0, expense: 0 }
-      )
-      setStats(totals)
+      const total = data.reduce((acc: number, item: any) => {
+        return item.type === 'income' ? acc + Number(item.amount) : acc - Number(item.amount)
+      }, 0)
+      setBalance(total)
     }
+  }
+
+  const fetchHistory = async () => {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*, categories(*)')
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    if (error) console.error(error)
+    else setHistory(data as any || [])
   }
 
   const handleLogin = () => {
@@ -71,21 +79,34 @@ function App() {
     }
   }
 
-  const handleReset = () => {
-    setCategory(null)
+  const handleStart = (selectedType: 'income' | 'expense') => {
+    setType(selectedType)
+    setView('entry')
+  }
+
+  const handleBack = () => {
+    setView('start')
     setAmount('')
-    setType('expense')
-    setMessage('')
+    setSelectedCategory(null)
+  }
+
+  const toggleHistory = () => {
+    if (view === 'history') {
+      setView('start')
+    } else {
+      fetchHistory()
+      setView('history')
+    }
   }
 
   const handleSubmit = async () => {
-    if (!amount || (type === 'expense' && !category)) return
+    if (!amount || (type === 'expense' && !selectedCategory)) return
 
     setIsSubmitting(true)
     const { error } = await supabase.from('transactions').insert([
       {
         type,
-        category: type === 'expense' ? category : null,
+        category_id: type === 'expense' ? selectedCategory : null,
         amount: Number(amount),
       },
     ])
@@ -94,20 +115,24 @@ function App() {
     if (error) {
       alert(error.message)
     } else {
-      setMessage(t('success'))
-      fetchStats()
+      setShowSuccess(true)
+      fetchBalance()
       setTimeout(() => {
-        handleReset()
+        setShowSuccess(false)
+        handleBack()
       }, 1500)
     }
+  }
+
+  const renderIcon = (iconName: string) => {
+    const IconComponent = (Icons as any)[iconName] || Icons.HelpCircle
+    return <IconComponent size={20} />
   }
 
   if (!isLoggedIn) {
     return (
       <div className="login-container">
-        <div className="login-icon">
-          <Lock size={32} />
-        </div>
+        <div className="login-icon"><Icons.Lock size={32} /></div>
         <h2 style={{ fontWeight: 400 }}>{t('login')}</h2>
         <input
           type="password"
@@ -117,65 +142,57 @@ function App() {
           placeholder="••••••"
           onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
         />
-        <button className="submit-btn" onClick={handleLogin}>
-          {t('login_btn')}
-        </button>
+        <button className="submit-btn" onClick={handleLogin}>{t('login_btn')}</button>
       </div>
     )
   }
 
   return (
     <div className="app-container">
-      <header>
-        <div className="stats-card">
-          <div className="stats-label">{t('stats')}</div>
-          <div className="stats-value">
-            <span style={{ color: 'var(--income)' }}>+{stats.income.toLocaleString()}</span>
-            <span style={{ margin: '0 8px', color: 'var(--text-muted)' }}>/</span>
-            <span style={{ color: 'var(--expense)' }}>-{stats.expense.toLocaleString()}</span>
+      <header className="app-header">
+        <div className="balance-badge" onClick={toggleHistory}>
+          <div className="balance-label">{t('balance')}</div>
+          <div className={`balance-value ${balance >= 0 ? 'plus' : 'minus'}`}>
+            {balance.toLocaleString()}
           </div>
-          <div className="stats-label" style={{ marginTop: '4px' }}>
-            {t('balance')}: <span style={{ color: stats.income - stats.expense >= 0 ? 'var(--income)' : 'var(--expense)' }}>
-              {(stats.income - stats.expense).toLocaleString()}
-            </span>
-          </div>
+          <Icons.ChevronRight size={14} className={`history-arrow ${view === 'history' ? 'open' : ''}`} />
         </div>
       </header>
 
       <main className="main-content">
-        {!message ? (
-          <>
-            <div className="mode-selector">
-              <button
-                className={`mode-btn ${type === 'expense' ? 'active expense' : ''}`}
-                onClick={() => setType('expense')}
-              >
-                {t('expense')}
-              </button>
-              <button
-                className={`mode-btn ${type === 'income' ? 'active income' : ''}`}
-                onClick={() => setType('income')}
-              >
-                {t('income')}
-              </button>
+        {showSuccess ? (
+          <div className="success-screen">
+            <div className="success-icon">✅</div>
+            <h2>{t('success')}</h2>
+          </div>
+        ) : view === 'start' ? (
+          <div className="start-screen">
+            <button className="big-btn expense" onClick={() => handleStart('expense')}>
+              <Icons.TrendingDown size={40} />
+              <span>{t('expense')}</span>
+            </button>
+            <button className="big-btn income" onClick={() => handleStart('income')}>
+              <Icons.TrendingUp size={40} />
+              <span>{t('income')}</span>
+            </button>
+          </div>
+        ) : view === 'entry' ? (
+          <div className="entry-screen">
+            <div className="entry-header">
+              <button className="icon-btn" onClick={handleBack}><Icons.ArrowLeft size={24} /></button>
+              <h2>{type === 'expense' ? t('expense') : t('income')}</h2>
             </div>
-
+            
             {type === 'expense' && (
               <div className="category-grid">
-                {[
-                  { id: 'food', icon: <Utensils size={20} /> },
-                  { id: 'daily', icon: <ShoppingBag size={20} /> },
-                  { id: 'transport', icon: <Car size={20} /> },
-                  { id: 'entertainment', icon: <Heart size={20} /> },
-                  { id: 'others', icon: <MoreHorizontal size={20} /> }
-                ].map((cat) => (
+                {categories.map((cat) => (
                   <button
                     key={cat.id}
-                    className={`category-btn ${category === cat.id ? 'selected' : ''}`}
-                    onClick={() => setCategory(cat.id as Category)}
+                    className={`category-btn ${selectedCategory === cat.id ? 'selected' : ''}`}
+                    onClick={() => setSelectedCategory(cat.id)}
                   >
-                    {cat.icon}
-                    <span>{t(cat.id as any)}</span>
+                    {renderIcon(cat.icon)}
+                    <span>{lang === 'ja' ? cat.name_ja : cat.name_zh}</span>
                   </button>
                 ))}
               </div>
@@ -193,27 +210,43 @@ function App() {
 
             <button
               className="submit-btn"
-              disabled={isSubmitting || !amount || (type === 'expense' && !category)}
+              disabled={isSubmitting || !amount || (type === 'expense' && !selectedCategory)}
               onClick={handleSubmit}
               style={{ 
-                opacity: isSubmitting || !amount || (type === 'expense' && !category) ? 0.5 : 1,
                 background: type === 'expense' ? 'var(--expense)' : 'var(--income)',
                 color: 'white'
               }}
             >
               {isSubmitting ? '...' : t('submit')}
             </button>
-          </>
+          </div>
         ) : (
-          <div style={{ textAlign: 'center', animation: 'fadeIn 0.5s' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '20px' }}>✅</div>
-            <h2>{message}</h2>
+          <div className="history-screen">
+            <div className="history-header">
+              <button className="icon-btn" onClick={() => setView('start')}><Icons.ArrowLeft size={24} /></button>
+              <h2>{t('stats')}</h2>
+            </div>
+            <div className="history-list">
+              {history.map((item) => (
+                <div key={item.id} className="history-item">
+                  <div className="item-info">
+                    <div className="item-date">{new Date(item.created_at).toLocaleDateString()}</div>
+                    <div className="item-cat">
+                      {item.type === 'income' ? t('income') : (item as any).categories?.name_ja || t('others')}
+                    </div>
+                  </div>
+                  <div className={`item-amount ${item.type}`}>
+                    {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </main>
 
       <div className="lang-toggle" onClick={toggleLang}>
-        <Languages size={20} />
+        <Icons.Languages size={20} />
       </div>
     </div>
   )
