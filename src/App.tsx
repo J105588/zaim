@@ -6,7 +6,18 @@ import './App.css'
 
 type View = 'start' | 'entry' | 'history'
 
+import { useRegisterSW } from 'virtual:pwa-register/react'
+
 function App() {
+  useRegisterSW({
+    onRegistered(r: ServiceWorkerRegistration | undefined) {
+      // Periodic update check (once every 10 minutes)
+      r && setInterval(() => {
+        r.update()
+      }, 10 * 60 * 1000)
+    },
+  })
+
   const { lang, t, toggleLang } = useI18n()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [password, setPassword] = useState('')
