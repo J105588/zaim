@@ -23,6 +23,10 @@ const translations = {
     prev_month: '前月',
     next_month: '次月',
     month_stats: '収支一覧',
+    delete_confirm_title: '削除の確認',
+    delete_confirm_msg: 'この項目を削除してもよろしいですか？',
+    cancel: 'キャンセル',
+    delete_btn: '削除する',
   },
   zh: {
     income: '收入',
@@ -46,6 +50,10 @@ const translations = {
     prev_month: '上个月',
     next_month: '下个月',
     month_stats: '月收支概览',
+    delete_confirm_title: '确认删除',
+    delete_confirm_msg: '您确定要删除这一条目吗？',
+    cancel: '取消',
+    delete_btn: '确认删除',
   },
 }
 

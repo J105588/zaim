@@ -36,6 +36,7 @@ function App() {
   const [swipeX, setSwipeX] = useState(0)
   const [startX, setStartX] = useState(0)
   const [baseX, setBaseX] = useState(0)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   const familyPassword = import.meta.env.VITE_FAMILY_PASSWORD || 'family123'
 
@@ -184,6 +185,7 @@ function App() {
       setView('start')
       setSwipingId(null)
       setSwipeX(0)
+      setDeleteConfirmId(null)
     } else {
       fetchHistory(selectedDate)
       setView('history')
@@ -241,16 +243,28 @@ function App() {
     handleTouchEnd()
   }
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('transactions').delete().eq('id', id)
+  const handleDelete = (id: string) => {
+    setDeleteConfirmId(id)
+  }
+
+  const executeDelete = async () => {
+    if (!deleteConfirmId) return
+    const { error } = await supabase.from('transactions').delete().eq('id', deleteConfirmId)
     if (error) {
       console.error(error)
     } else {
-      setHistory(prev => prev.filter(item => item.id !== id))
+      setHistory(prev => prev.filter(item => item.id !== deleteConfirmId))
       fetchBalance()
+      setDeleteConfirmId(null)
       setSwipingId(null)
       setSwipeX(0)
     }
+  }
+
+  const cancelDelete = () => {
+    setDeleteConfirmId(null)
+    setSwipingId(null)
+    setSwipeX(0)
   }
 
   const handleAmountChange = (val: string) => {
@@ -489,6 +503,26 @@ function App() {
       <div className="lang-toggle" onClick={handleToggleLang}>
         <Icons.Languages size={20} />
       </div>
+
+      {deleteConfirmId && (
+        <div className="modal-overlay">
+          <div className="confirm-modal">
+            <div className="modal-icon">
+              <Icons.AlertTriangle size={36} color="var(--expense)" />
+            </div>
+            <h3>{t('delete_confirm_title')}</h3>
+            <p>{t('delete_confirm_msg')}</p>
+            <div className="modal-actions">
+              <button className="modal-btn cancel" onClick={cancelDelete}>
+                {t('cancel')}
+              </button>
+              <button className="modal-btn delete" onClick={executeDelete}>
+                {t('delete_btn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
