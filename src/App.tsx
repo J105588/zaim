@@ -19,6 +19,8 @@ function App() {
   const [history, setHistory] = useState<Transaction[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [showToast, setShowToast] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(new Date())
 
   const familyPassword = import.meta.env.VITE_FAMILY_PASSWORD || 'family123'
 
@@ -35,7 +37,10 @@ function App() {
   }, [isLoggedIn])
 
   const fetchCategories = async () => {
-    const { data, error } = await supabase.from('categories').select('*').order('name_ja')
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('sort_order', { ascending: true })
     if (error) console.error(error)
     else setCategories(data || [])
   }
@@ -59,15 +64,25 @@ function App() {
     }
   }
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (date: Date) => {
+    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1)
+    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
+
     const { data, error } = await supabase
       .from('transactions')
       .select('*, categories(*)')
+      .gte('created_at', startOfMonth.toISOString())
+      .lte('created_at', endOfMonth.toISOString())
       .order('created_at', { ascending: false })
-      .limit(50)
 
     if (error) console.error(error)
     else setHistory(data as any || [])
+  }
+
+  const changeMonth = (offset: number) => {
+    const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + offset, 1)
+    setSelectedDate(newDate)
+    fetchHistory(newDate)
   }
 
   const handleLogin = () => {
@@ -90,11 +105,17 @@ function App() {
     setSelectedCategory(null)
   }
 
+  const handleToggleLang = () => {
+    toggleLang()
+    setShowToast(true)
+    setTimeout(() => setShowToast(false), 2000)
+  }
+
   const toggleHistory = () => {
     if (view === 'history') {
       setView('start')
     } else {
-      fetchHistory()
+      fetchHistory(selectedDate)
       setView('history')
     }
   }
@@ -131,24 +152,45 @@ function App() {
 
   if (!isLoggedIn) {
     return (
-      <div className="login-container">
-        <div className="login-icon"><Icons.Lock size={32} /></div>
-        <h2 style={{ fontWeight: 400 }}>{t('login')}</h2>
-        <input
-          type="password"
-          className="login-input"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••"
-          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-        />
-        <button className="submit-btn" onClick={handleLogin}>{t('login_btn')}</button>
+      <div className="login-screen">
+        <div className="login-card">
+          <div className="login-header">
+            <div className="login-logo">
+              <Icons.ShieldCheck size={40} strokeWidth={1.5} />
+            </div>
+            <h1>{t('login')}</h1>
+            <p>{t('login_desc') || 'Family Financial System'}</p>
+          </div>
+          
+          <div className="login-body">
+            <div className="input-group">
+              <Icons.Lock size={18} className="input-icon" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                autoFocus
+              />
+            </div>
+            <button className="login-btn" onClick={handleLogin}>
+              {t('login_btn')}
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="app-container">
+      {showToast && (
+        <div className="toast">
+          <Icons.CheckCircle size={18} />
+          <span>{lang === 'ja' ? '日本語に切り替えました' : '已切换至简体中文'}</span>
+        </div>
+      )}
       <header className="app-header">
         <div className="balance-badge" onClick={toggleHistory}>
           <div className="balance-label">{t('balance')}</div>
@@ -201,6 +243,7 @@ function App() {
             <div className="input-container">
               <input
                 type="number"
+                inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
@@ -224,28 +267,47 @@ function App() {
           <div className="history-screen">
             <div className="history-header">
               <button className="icon-btn" onClick={() => setView('start')}><Icons.ArrowLeft size={24} /></button>
-              <h2>{t('stats')}</h2>
+              <h2>{selectedDate.getFullYear()}{lang === 'ja' ? '年' : '.'}{selectedDate.getMonth() + 1}{lang === 'ja' ? '月の収支' : ' ' + t('month_stats')}</h2>
             </div>
+            
             <div className="history-list">
-              {history.map((item) => (
-                <div key={item.id} className="history-item">
-                  <div className="item-info">
-                    <div className="item-date">{new Date(item.created_at).toLocaleDateString()}</div>
-                    <div className="item-cat">
-                      {item.type === 'income' ? t('income') : (item as any).categories?.name_ja || t('others')}
+              {history.length === 0 ? (
+                <div className="empty-state">
+                  <Icons.Inbox size={48} strokeWidth={1} />
+                  <p>{t('no_data')}</p>
+                </div>
+              ) : (
+                history.map((item) => (
+                  <div key={item.id} className="history-item">
+                    <div className="item-info">
+                      <div className="item-date">{new Date(item.created_at).toLocaleDateString()}</div>
+                      <div className="item-cat">
+                        {item.type === 'income' ? t('income') : (item as any).categories?.name_ja || t('others')}
+                      </div>
+                    </div>
+                    <div className={`item-amount ${item.type}`}>
+                      {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
                     </div>
                   </div>
-                  <div className={`item-amount ${item.type}`}>
-                    {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
+            </div>
+
+            <div className="history-nav">
+              <button className="nav-btn" onClick={() => changeMonth(-1)}>
+                <Icons.ChevronLeft size={20} />
+                {t('prev_month')}
+              </button>
+              <button className="nav-btn" onClick={() => changeMonth(1)}>
+                {t('next_month')}
+                <Icons.ChevronRight size={20} />
+              </button>
             </div>
           </div>
         )}
       </main>
 
-      <div className="lang-toggle" onClick={toggleLang}>
+      <div className="lang-toggle" onClick={handleToggleLang}>
         <Icons.Languages size={20} />
       </div>
     </div>
