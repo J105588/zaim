@@ -37,6 +37,7 @@ function App() {
   const [startX, setStartX] = useState(0)
   const [baseX, setBaseX] = useState(0)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [historyViewMode, setHistoryViewMode] = useState<'list' | 'chart'>('list')
 
   const familyPassword = import.meta.env.VITE_FAMILY_PASSWORD || 'family123'
 
@@ -186,6 +187,7 @@ function App() {
       setSwipingId(null)
       setSwipeX(0)
       setDeleteConfirmId(null)
+      setHistoryViewMode('list')
     } else {
       fetchHistory(selectedDate)
       setView('history')
@@ -279,11 +281,10 @@ function App() {
   }
 
   const handleSubmit = async () => {
-    if (!amount || (type === 'expense' && !selectedCategory)) return
+    const rawAmount = Number(amount.replace(/,/g, ''))
+    if (!amount || rawAmount === 0 || (type === 'expense' && !selectedCategory)) return
 
     setIsSubmitting(true)
-    const rawAmount = Number(amount.replace(/,/g, ''))
-    
     const { error } = await supabase.from('transactions').insert([
       {
         type,
@@ -428,10 +429,16 @@ function App() {
                 autoFocus
               />
             </div>
+            
+            {amount !== '' && Number(amount.replace(/,/g, '')) === 0 && (
+              <div className="validation-msg">
+                {t('invalid_amount')}
+              </div>
+            )}
 
             <button
               className="submit-btn"
-              disabled={isSubmitting || !amount || (type === 'expense' && !selectedCategory)}
+              disabled={isSubmitting || !amount || Number(amount.replace(/,/g, '')) === 0 || (type === 'expense' && !selectedCategory)}
               onClick={handleSubmit}
               style={{ 
                 background: type === 'expense' ? 'var(--expense)' : 'var(--income)',
@@ -449,9 +456,26 @@ function App() {
                 {selectedDate.getFullYear()}{lang === 'ja' || lang === 'zh' ? (lang === 'ja' ? '年' : '年') : '.'}
                 {selectedDate.getMonth() + 1}{lang === 'ja' || lang === 'zh' ? (lang === 'ja' ? '月の収支' : '月收支概览') : ' ' + t('month_stats')}
               </h2>
+              <div className="view-toggle">
+                <button 
+                  className={`toggle-btn ${historyViewMode === 'list' ? 'active' : ''}`}
+                  onClick={() => setHistoryViewMode('list')}
+                >
+                  <Icons.List size={18} />
+                  <span>{t('list_view')}</span>
+                </button>
+                <button 
+                  className={`toggle-btn ${historyViewMode === 'chart' ? 'active' : ''}`}
+                  onClick={() => setHistoryViewMode('chart')}
+                >
+                  <Icons.PieChart size={18} />
+                  <span>{t('chart_view')}</span>
+                </button>
+              </div>
             </div>
-            
-            <div className="history-list">
+
+            <div className={`history-content-wrapper ${historyViewMode}`}>
+              <div className="history-list-view">
               {history.length === 0 ? (
                 <div className="empty-state">
                   <Icons.Inbox size={48} strokeWidth={1} />
@@ -496,6 +520,107 @@ function App() {
                   </div>
                 ))
               )}
+              </div>
+
+              <div className="history-chart-view">
+                {history.filter(item => item.type === 'expense').length === 0 ? (
+                  <div className="empty-state">
+                    <Icons.Inbox size={48} strokeWidth={1} />
+                    <p>{t('no_data')}</p>
+                  </div>
+                ) : (
+                  <div className="analytics-container">
+                    <div className="chart-wrapper">
+                      <svg viewBox="0 0 100 100" className="pie-chart">
+                        {(() => {
+                          const expenses = history.filter(item => item.type === 'expense')
+                          const totals = expenses.reduce((acc: any, item: any) => {
+                            const catId = item.category_id || 'others'
+                            const amount = Number(item.amount)
+                            acc[catId] = (acc[catId] || 0) + amount
+                            return acc
+                          }, {})
+                          
+                          const total = Object.values(totals).reduce((a: any, b: any) => a + b, 0) as number
+                          let startAngle = 0
+                          const colors = ['#00d2ff', '#00ff88', '#ff4d4d', '#ff9f43', '#a29bfe', '#fab1a0', '#00cec9', '#ffeaa7']
+                          
+                          return Object.entries(totals).map(([catId, amount], index) => {
+                            const percentage = (amount as number) / total
+                            const angle = percentage * 360
+                            const endAngle = startAngle + angle
+                            
+                            // Drawing sector
+                            const x1 = 50 + 40 * Math.cos(Math.PI * (startAngle - 90) / 180)
+                            const y1 = 50 + 40 * Math.sin(Math.PI * (startAngle - 90) / 180)
+                            const x2 = 50 + 40 * Math.cos(Math.PI * (endAngle - 90) / 180)
+                            const y2 = 50 + 40 * Math.sin(Math.PI * (endAngle - 90) / 180)
+                            
+                            const largeArcFlag = angle > 180 ? 1 : 0
+                            const pathData = `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`
+                            
+                            startAngle += angle
+                            
+                            const category = categories.find(c => c.id === catId)
+                            const name = lang === 'ja' ? category?.name_ja : category?.name_zh
+                            
+                            return (
+                              <path 
+                                key={catId} 
+                                d={pathData} 
+                                fill={colors[index % colors.length]} 
+                                stroke="var(--bg)" 
+                                strokeWidth="2"
+                              >
+                                <title>{name}: {Number(amount).toLocaleString()}</title>
+                              </path>
+                            )
+                          })
+                        })()}
+                      </svg>
+                      <div className="chart-center">
+                        <div className="center-label">{t('expense')}</div>
+                        <div className="center-value">
+                          {history.filter(item => item.type === 'expense').reduce((sum, item) => sum + Number(item.amount), 0).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="chart-legend">
+                      {(() => {
+                        const expenses = history.filter(item => item.type === 'expense')
+                        const totals = expenses.reduce((acc: any, item: any) => {
+                          const catId = item.category_id || 'others'
+                          const amount = Number(item.amount)
+                          acc[catId] = (acc[catId] || 0) + amount
+                          return acc
+                        }, {})
+                        const total = Object.values(totals).reduce((a: any, b: any) => a + b, 0) as number
+                        const colors = ['#00d2ff', '#00ff88', '#ff4d4d', '#ff9f43', '#a29bfe', '#fab1a0', '#00cec9', '#ffeaa7']
+
+                        return Object.entries(totals)
+                          .sort(([, a], [, b]) => (b as number) - (a as number))
+                          .map(([catId, amount], index) => {
+                            const category = categories.find(c => c.id === catId)
+                            const name = (lang === 'ja' ? category?.name_ja : category?.name_zh) || t('others')
+                            const percentage = Math.round(((amount as number) / total) * 100)
+                            
+                            return (
+                              <div key={catId} className="legend-item">
+                                <div className="legend-dot" style={{ backgroundColor: colors[index % colors.length] }}></div>
+                                <div className="legend-info">
+                                  <span className="legend-name">{name}</span>
+                                  <span className="legend-percent">{percentage}%</span>
+                                </div>
+                                <div className="legend-amount">{Number(amount).toLocaleString()}</div>
+                              </div>
+                            )
+                          })
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="history-nav">

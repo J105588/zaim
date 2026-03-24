@@ -30,6 +30,9 @@ const translations = {
     delete_confirm_msg: 'この項目を削除してもよろしいですか？',
     cancel: 'キャンセル',
     delete_btn: '削除する',
+    invalid_amount: '0円は入力できません',
+    list_view: '一覧',
+    chart_view: '分析',
   },
   zh: {
     income: '收入',
@@ -60,6 +63,9 @@ const translations = {
     delete_confirm_msg: '您确定要删除这一条目吗？',
     cancel: '取消',
     delete_btn: '确认删除',
+    invalid_amount: '金额不能为0',
+    list_view: '列表',
+    chart_view: '图表',
   },
 }
 
