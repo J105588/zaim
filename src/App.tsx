@@ -40,6 +40,8 @@ function App() {
   const [historyViewMode, setHistoryViewMode] = useState<'list' | 'chart'>('list')
   const [memo, setMemo] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [isSearchVisible, setIsSearchVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
 
   const familyPassword = import.meta.env.VITE_FAMILY_PASSWORD || 'family123'
 
@@ -272,6 +274,22 @@ function App() {
     setSwipeX(0)
   }
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const currentScrollY = e.currentTarget.scrollTop
+    const diff = currentScrollY - lastScrollY
+    
+    if (currentScrollY < 10) {
+      setIsSearchVisible(true)
+    } else if (Math.abs(diff) > 10) { // Threshold to avoid jitter
+      if (diff > 0) {
+        setIsSearchVisible(false) // Scrolling Down
+      } else {
+        setIsSearchVisible(true) // Scrolling Up
+      }
+    }
+    setLastScrollY(currentScrollY)
+  }
+
   const handleAmountChange = (val: string) => {
     // Remove all non-numeric characters except for the decimal point
     const cleanVal = val.replace(/[^\d.]/g, '')
@@ -488,23 +506,22 @@ function App() {
               </div>
             </div>
 
-            <div className="search-container">
-              <Icons.Search size={18} className="search-icon" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={t('search_placeholder')}
-              />
-              {searchTerm && (
-                <button className="clear-search" onClick={() => setSearchTerm('')}>
-                  <Icons.X size={16} />
-                </button>
-              )}
-            </div>
-
             <div className={`history-content-wrapper ${historyViewMode}`}>
-              <div className="history-list-view">
+              <div className="history-list-view" onScroll={handleScroll}>
+                <div className={`search-container ${isSearchVisible ? 'visible' : 'hidden'}`}>
+                  <Icons.Search size={18} className="search-icon" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder={t('search_placeholder')}
+                  />
+                  {searchTerm && (
+                    <button className="clear-search" onClick={() => setSearchTerm('')}>
+                      <Icons.X size={16} />
+                    </button>
+                  )}
+                </div>
               {(() => {
                 const filteredHistory = history.filter(item => {
                   if (!searchTerm) return true
