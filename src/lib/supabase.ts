@@ -23,5 +23,6 @@ export type Transaction = {
   category_id: string | null
   amount: number
   created_at: string
+  memo?: string | null
   category?: Category // Joined category data
 }

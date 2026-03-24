@@ -33,6 +33,9 @@ const translations = {
     invalid_amount: '0円は入力できません',
     list_view: '一覧',
     chart_view: '分析',
+    memo: 'メモ',
+    memo_placeholder: '内容を入力（任意）',
+    search_placeholder: '履歴を検索...',
   },
   zh: {
     income: '收入',
@@ -66,6 +69,9 @@ const translations = {
     invalid_amount: '金额不能为0',
     list_view: '列表',
     chart_view: '图表',
+    memo: '备注',
+    memo_placeholder: '输入备注（可选）',
+    search_placeholder: '搜索历史...',
   },
 }
 

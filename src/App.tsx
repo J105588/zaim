@@ -38,6 +38,8 @@ function App() {
   const [baseX, setBaseX] = useState(0)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'list' | 'chart'>('list')
+  const [memo, setMemo] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
 
   const familyPassword = import.meta.env.VITE_FAMILY_PASSWORD || 'family123'
 
@@ -140,7 +142,7 @@ function App() {
 
     const { data, error } = await supabase
       .from('transactions')
-      .select('*, categories(*)')
+      .select('*, category:categories(*)')
       .gte('created_at', startOfMonth.toISOString())
       .lte('created_at', endOfMonth.toISOString())
       .order('created_at', { ascending: false })
@@ -173,6 +175,7 @@ function App() {
     setView('start')
     setAmount('')
     setSelectedCategory(null)
+    setMemo('')
   }
 
   const handleToggleLang = () => {
@@ -290,6 +293,7 @@ function App() {
         type,
         category_id: type === 'expense' ? selectedCategory : null,
         amount: rawAmount,
+        memo: memo.trim() || null,
       },
     ])
 
@@ -429,6 +433,16 @@ function App() {
                 autoFocus
               />
             </div>
+
+            <div className="memo-container">
+              <Icons.FileText size={18} className="memo-icon" />
+              <input
+                type="text"
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder={t('memo_placeholder')}
+              />
+            </div>
             
             {amount !== '' && Number(amount.replace(/,/g, '')) === 0 && (
               <div className="validation-msg">
@@ -474,15 +488,44 @@ function App() {
               </div>
             </div>
 
+            <div className="search-container">
+              <Icons.Search size={18} className="search-icon" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={t('search_placeholder')}
+              />
+              {searchTerm && (
+                <button className="clear-search" onClick={() => setSearchTerm('')}>
+                  <Icons.X size={16} />
+                </button>
+              )}
+            </div>
+
             <div className={`history-content-wrapper ${historyViewMode}`}>
               <div className="history-list-view">
-              {history.length === 0 ? (
-                <div className="empty-state">
-                  <Icons.Inbox size={48} strokeWidth={1} />
-                  <p>{t('no_data')}</p>
-                </div>
-              ) : (
-                history.map((item) => (
+              {(() => {
+                const filteredHistory = history.filter(item => {
+                  if (!searchTerm) return true
+                  const searchLower = searchTerm.toLowerCase()
+                  const categoryName = lang === 'ja' ? item.category?.name_ja : item.category?.name_zh
+                  const memoMatch = item.memo?.toLowerCase().includes(searchLower)
+                  const categoryMatch = categoryName?.toLowerCase().includes(searchLower)
+                  const typeMatch = (item.type === 'income' ? t('income') : t('expense')).toLowerCase().includes(searchLower)
+                  return memoMatch || categoryMatch || typeMatch
+                })
+
+                if (filteredHistory.length === 0) {
+                  return (
+                    <div className="empty-state">
+                      <Icons.Inbox size={48} strokeWidth={1} />
+                      <p>{t('no_data')}</p>
+                    </div>
+                  )
+                }
+
+                return filteredHistory.map((item) => (
                   <div 
                     key={item.id} 
                     className="swipe-item-container"
@@ -510,8 +553,9 @@ function App() {
                       <div className="item-info">
                         <div className="item-date">{new Date(item.created_at).toLocaleDateString()}</div>
                         <div className="item-cat">
-                          {item.type === 'income' ? t('income') : (lang === 'ja' ? (item as any).categories?.name_ja : (item as any).categories?.name_zh) || t('others')}
+                          {item.type === 'income' ? t('income') : (lang === 'ja' ? item.category?.name_ja : item.category?.name_zh) || t('others')}
                         </div>
+                        {item.memo && <div className="item-memo">{item.memo}</div>}
                       </div>
                       <div className={`item-amount ${item.type}`}>
                         {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
@@ -519,7 +563,7 @@ function App() {
                     </div>
                   </div>
                 ))
-              )}
+              })()}
               </div>
 
               <div className="history-chart-view">
