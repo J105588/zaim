@@ -759,6 +759,17 @@ function App() {
                 <Icons.ChevronLeft size={20} />
                 {t('prev_month')}
               </button>
+              {!(selectedDate.getMonth() === new Date().getMonth() && selectedDate.getFullYear() === new Date().getFullYear()) && (
+                <button className="nav-btn today-btn" onClick={() => {
+                  const now = new Date()
+                  const target = new Date(now.getFullYear(), now.getMonth(), 1)
+                  setSelectedDate(target)
+                  fetchHistory(target)
+                }}>
+                  <Icons.CalendarClock size={20} />
+                  <span>{t('today')}</span>
+                </button>
+              )}
               <button className="nav-btn" onClick={() => changeMonth(1)}>
                 {t('next_month')}
                 <Icons.ChevronRight size={20} />

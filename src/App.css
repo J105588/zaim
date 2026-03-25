@@ -224,7 +224,7 @@ body {
   border-bottom: 2px solid rgba(255, 255, 255, 0.2);
   color: white;
   font-size: 4rem;
-  text-align: center;
+  text-align: right;
   padding: 10px;
   font-weight: 800;
   outline: none;
@@ -555,6 +555,7 @@ body {
   right: -20px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 24px 40px calc(24px + env(safe-area-inset-bottom));
   background: linear-gradient(to top, 
     #0a0a0a 0%, 
@@ -579,6 +580,15 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
+}
+
+.today-btn {
+  animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 .nav-btn:active {
