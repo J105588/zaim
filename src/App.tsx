@@ -804,7 +804,7 @@ function App() {
               <button className="modal-btn cancel" onClick={cancelEdit}>
                 {t('cancel')}
               </button>
-              <button className="modal-btn edit" onClick={executeEdit} style={{ background: 'var(--accent)' }}>
+              <button className="modal-btn edit" onClick={executeEdit}>
                 {t('edit_btn')}
               </button>
             </div>

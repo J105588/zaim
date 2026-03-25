@@ -924,6 +924,7 @@ body {
   font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.2s;
+  color: white; /* Ensure text is white by default */
 }
 
 .modal-btn.cancel {
@@ -936,6 +937,12 @@ body {
   background: var(--expense);
   color: white;
   box-shadow: 0 4px 12px rgba(255, 77, 77, 0.3);
+}
+
+.modal-btn.edit {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 210, 255, 0.3);
 }
 
 .modal-btn:active {
