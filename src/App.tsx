@@ -288,10 +288,6 @@ function App() {
   }
 
   const handleMouseUp = (item: Transaction) => {
-    const duration = Date.now() - touchStartTime
-    if (Math.abs(swipeX) < 5 && duration < 300) {
-      handleEditRequest(item)
-    }
     handleTouchEnd(item)
   }
 
