@@ -42,6 +42,10 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isSearchVisible, setIsSearchVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editConfirmId, setEditConfirmId] = useState<string | null>(null)
+  const [lastTap, setLastTap] = useState(0)
+  const [touchStartTime, setTouchStartTime] = useState(0)
 
   const familyPassword = import.meta.env.VITE_FAMILY_PASSWORD || 'family123'
 
@@ -178,6 +182,7 @@ function App() {
     setAmount('')
     setSelectedCategory(null)
     setMemo('')
+    setEditingId(null)
   }
 
   const handleToggleLang = () => {
@@ -193,13 +198,44 @@ function App() {
       setSwipeX(0)
       setDeleteConfirmId(null)
       setHistoryViewMode('list')
+      setEditingId(null)
     } else {
       fetchHistory(selectedDate)
       setView('history')
     }
   }
 
+  const handleEdit = (item: Transaction) => {
+    setEditingId(item.id)
+    setType(item.type)
+    setSelectedCategory(item.category_id)
+    setAmount(item.amount.toLocaleString())
+    setMemo(item.memo || '')
+    setView('entry')
+  }
+
+  const handleEditRequest = (item: Transaction) => {
+    const now = Date.now()
+    if (now - lastTap < 400) {
+      // Double tap detected
+      setEditConfirmId(item.id)
+    }
+    setLastTap(now)
+  }
+
+  const executeEdit = () => {
+    if (!editConfirmId) return
+    const item = history.find(h => h.id === editConfirmId)
+    if (item) handleEdit(item as Transaction)
+    setEditConfirmId(null)
+  }
+
+  const cancelEdit = () => {
+    setEditConfirmId(null)
+  }
+
   const handleTouchStart = (e: React.TouchEvent, id: string) => {
+    setTouchStartTime(Date.now())
     setStartX(e.touches[0].clientX)
     if (swipingId === id) {
       setBaseX(swipeX)
@@ -218,12 +254,17 @@ function App() {
     setSwipeX(Math.min(0, Math.max(newX, -100)))
   }
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (item: Transaction) => {
+    const duration = Date.now() - touchStartTime
+    if (Math.abs(swipeX) < 5 && duration < 300) {
+      handleEditRequest(item)
+    }
+
     if (swipeX <= -50) {
       setSwipeX(-100)
     } else {
       setSwipeX(0)
-      setTimeout(() => setSwipingId(null), 300)
+      setTimeout(() => setSwipingId(null), 100)
     }
   }
 
@@ -246,8 +287,12 @@ function App() {
     setSwipeX(Math.min(0, Math.max(newX, -100)))
   }
 
-  const handleMouseUp = () => {
-    handleTouchEnd()
+  const handleMouseUp = (item: Transaction) => {
+    const duration = Date.now() - touchStartTime
+    if (Math.abs(swipeX) < 5 && duration < 300) {
+      handleEditRequest(item)
+    }
+    handleTouchEnd(item)
   }
 
   const handleDelete = (id: string) => {
@@ -306,25 +351,51 @@ function App() {
     if (!amount || rawAmount === 0 || (type === 'expense' && !selectedCategory)) return
 
     setIsSubmitting(true)
-    const { error } = await supabase.from('transactions').insert([
-      {
-        type,
-        category_id: type === 'expense' ? selectedCategory : null,
-        amount: rawAmount,
-        memo: memo.trim() || null,
-      },
-    ])
+    
+    if (editingId) {
+      const { error } = await supabase
+        .from('transactions')
+        .update({
+          type,
+          category_id: type === 'expense' ? selectedCategory : null,
+          amount: rawAmount,
+          memo: memo.trim() || null,
+        })
+        .eq('id', editingId)
 
-    setIsSubmitting(false)
-    if (error) {
-      alert(error.message)
+      setIsSubmitting(false)
+      if (error) {
+        alert(error.message)
+      } else {
+        setShowSuccess(true)
+        fetchBalance()
+        fetchHistory(selectedDate)
+        setTimeout(() => {
+          setShowSuccess(false)
+          handleBack()
+        }, 1500)
+      }
     } else {
-      setShowSuccess(true)
-      fetchBalance()
-      setTimeout(() => {
-        setShowSuccess(false)
-        handleBack()
-      }, 1500)
+      const { error } = await supabase.from('transactions').insert([
+        {
+          type,
+          category_id: type === 'expense' ? selectedCategory : null,
+          amount: rawAmount,
+          memo: memo.trim() || null,
+        },
+      ])
+
+      setIsSubmitting(false)
+      if (error) {
+        alert(error.message)
+      } else {
+        setShowSuccess(true)
+        fetchBalance()
+        setTimeout(() => {
+          setShowSuccess(false)
+          handleBack()
+        }, 1500)
+      }
     }
   }
 
@@ -416,7 +487,7 @@ function App() {
           <div className="entry-screen">
             <div className="entry-header">
               <button className="icon-btn" onClick={handleBack}><Icons.ArrowLeft size={24} /></button>
-              <h2>{type === 'expense' ? t('expense') : t('income')}</h2>
+              <h2>{editingId ? (type === 'expense' ? t('edit_expense') : t('edit_income')) : (type === 'expense' ? t('expense') : t('income'))}</h2>
             </div>
             
             {type === 'expense' && (
@@ -477,7 +548,7 @@ function App() {
                 color: 'white'
               }}
             >
-              {isSubmitting ? '...' : t('submit')}
+              {isSubmitting ? '...' : (editingId ? t('save') : t('submit'))}
             </button>
           </div>
         ) : (
@@ -553,20 +624,23 @@ function App() {
                     >
                       <Icons.Trash2 size={20} />
                     </button>
-                    <div 
-                      className="history-item"
-                      onTouchStart={(e) => handleTouchStart(e, item.id)}
-                      onTouchMove={handleTouchMove}
-                      onTouchEnd={handleTouchEnd}
-                      onMouseDown={(e) => handleMouseDown(e, item.id)}
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
-                      onMouseLeave={handleMouseUp}
-                      style={{ 
-                        transform: swipingId === item.id ? `translateX(${swipeX}px)` : 'translateX(0)',
-                        transition: swipeX === 0 || swipeX === -100 ? 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)' : 'none'
-                      }}
-                    >
+                      <div 
+                        className="history-item"
+                        onTouchStart={(e) => handleTouchStart(e, item.id)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={() => handleTouchEnd(item)}
+                        onMouseDown={(e) => {
+                          setTouchStartTime(Date.now())
+                          handleMouseDown(e, item.id)
+                        }}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={() => handleMouseUp(item)}
+                        onMouseLeave={() => handleMouseUp(item)}
+                        style={{ 
+                          transform: swipingId === item.id ? `translateX(${swipeX}px)` : 'translateX(0)',
+                          transition: swipeX === 0 || swipeX === -100 ? 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)' : 'none'
+                        }}
+                      >
                       <div className="item-info">
                         <div className="item-date">{new Date(item.created_at).toLocaleDateString()}</div>
                         <div className="item-cat">
@@ -716,6 +790,26 @@ function App() {
               </button>
               <button className="modal-btn delete" onClick={executeDelete}>
                 {t('delete_btn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editConfirmId && (
+        <div className="modal-overlay">
+          <div className="confirm-modal">
+            <div className="modal-icon">
+              <Icons.Edit3 size={36} color="var(--accent)" />
+            </div>
+            <h3>{t('edit_confirm_title')}</h3>
+            <p>{t('edit_confirm_msg')}</p>
+            <div className="modal-actions">
+              <button className="modal-btn cancel" onClick={cancelEdit}>
+                {t('cancel')}
+              </button>
+              <button className="modal-btn edit" onClick={executeEdit} style={{ background: 'var(--accent)' }}>
+                {t('edit_btn')}
               </button>
             </div>
           </div>

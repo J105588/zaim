@@ -36,6 +36,12 @@ const translations = {
     memo: 'メモ',
     memo_placeholder: '内容を入力（任意）',
     search_placeholder: '履歴を検索...',
+    edit_expense: '支出を編集',
+    edit_income: '収入を編集',
+    save: '更新',
+    edit_confirm_title: '編集しますか？',
+    edit_confirm_msg: 'この取引の内容を修正します。',
+    edit_btn: '編集する',
   },
   zh: {
     income: '收入',
@@ -72,6 +78,12 @@ const translations = {
     memo: '备注',
     memo_placeholder: '输入备注（可选）',
     search_placeholder: '搜索历史...',
+    edit_expense: '编辑支出',
+    edit_income: '编辑收入',
+    save: '更新',
+    edit_confirm_title: '是否编辑？',
+    edit_confirm_msg: '您要修改这笔交易的内容吗？',
+    edit_btn: '编辑',
   },
 }
 
