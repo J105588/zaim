@@ -100,14 +100,9 @@ function App() {
   }
 
   const fetchBalance = async () => {
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
-
     const { data, error } = await supabase
       .from('transactions')
       .select('amount, type')
-      .gte('created_at', startOfMonth.toISOString())
 
     if (error) console.error(error)
     if (data) {
