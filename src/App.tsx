@@ -26,7 +26,11 @@ function App() {
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
-  const [balance, setBalance] = useState(0)
+  const [balance, setBalance] = useState<number>(() => {
+    const saved = localStorage.getItem('lastBalance')
+    return saved ? Number(saved) : 0
+  })
+  const [isFetchingBalance, setIsFetchingBalance] = useState(false)
   const [history, setHistory] = useState<Transaction[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -100,16 +104,35 @@ function App() {
   }
 
   const fetchBalance = async () => {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('amount, type')
+    setIsFetchingBalance(true)
+    try {
+      // Try RPC first for server-side aggregation (high performance)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_total_balance')
+      
+      if (!rpcError && rpcData !== null) {
+        const total = Number(rpcData)
+        setBalance(total)
+        localStorage.setItem('lastBalance', String(total))
+        return
+      }
 
-    if (error) console.error(error)
-    if (data) {
-      const total = data.reduce((acc: number, item: any) => {
-        return item.type === 'income' ? acc + Number(item.amount) : acc - Number(item.amount)
-      }, 0)
-      setBalance(total)
+      // Fallback to client-side calculation if RPC fails/not found
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('amount, type')
+
+      if (error) throw error
+      if (data) {
+        const total = data.reduce((acc: number, item: any) => {
+          return item.type === 'income' ? acc + Number(item.amount) : acc - Number(item.amount)
+        }, 0)
+        setBalance(total)
+        localStorage.setItem('lastBalance', String(total))
+      }
+    } catch (error) {
+      console.error('Error fetching balance:', error)
+    } finally {
+      setIsFetchingBalance(false)
     }
   }
 
@@ -446,10 +469,17 @@ function App() {
         </div>
       )}
       <header className="app-header">
-        <div className="balance-badge" onClick={toggleHistory}>
+        <div className={`balance-badge ${isFetchingBalance ? 'loading' : ''}`} onClick={toggleHistory}>
           <div className="balance-label">{t('balance')}</div>
           <div className={`balance-value ${balance >= 0 ? 'plus' : 'minus'}`}>
-            {balance.toLocaleString()}
+            {isFetchingBalance && balance === 0 ? (
+              <span className="calculating-text">計算中...</span>
+            ) : (
+              <>
+                {balance.toLocaleString()}
+                {isFetchingBalance && <span className="refreshing-dot"></span>}
+              </>
+            )}
           </div>
           <Icons.ChevronRight size={14} className={`history-arrow ${view === 'history' ? 'open' : ''}`} />
         </div>
