@@ -43,6 +43,7 @@ const translations = {
     edit_confirm_msg: 'この取引の内容を修正します。',
     edit_btn: '編集する',
     today: '今月',
+    total_income: '総収入',
   },
   zh: {
     income: '收入',
@@ -86,6 +87,7 @@ const translations = {
     edit_confirm_msg: '您要修改这笔交易的内容吗？',
     edit_btn: '编辑',
     today: '本月',
+    total_income: '总收入',
   },
 }
 

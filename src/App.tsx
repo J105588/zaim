@@ -744,6 +744,19 @@ function App() {
                           })
                       })()}
                     </div>
+
+                    <div className="income-summary">
+                      <div className="summary-label">
+                        <Icons.TrendingUp size={18} />
+                        <span>{t('total_income')}</span>
+                      </div>
+                      <div className="summary-amount">
+                        {history
+                          .filter(item => item.type === 'income')
+                          .reduce((sum, item) => sum + Number(item.amount), 0)
+                          .toLocaleString()}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

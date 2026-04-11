@@ -492,6 +492,38 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.income-summary {
+  background: var(--glass);
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: -16px;
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.summary-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--income);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.summary-amount {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--income);
+}
+
 .legend-item {
   display: flex;
   align-items: center;
