@@ -46,9 +46,16 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isSearchVisible, setIsSearchVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const getLocalDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editConfirmId, setEditConfirmId] = useState<string | null>(null)
-  const [transactionDate, setTransactionDate] = useState<string>(new Date().toISOString().split('T')[0])
+  const [transactionDate, setTransactionDate] = useState<string>(getLocalDateString(new Date()))
   const [lastTap, setLastTap] = useState(0)
   const [touchStartTime, setTouchStartTime] = useState(0)
 
@@ -202,7 +209,7 @@ function App() {
     setSelectedCategory(null)
     setMemo('')
     setEditingId(null)
-    setTransactionDate(new Date().toISOString().split('T')[0])
+    setTransactionDate(getLocalDateString(new Date()))
   }
 
   const handleToggleLang = () => {
@@ -231,7 +238,7 @@ function App() {
     setSelectedCategory(item.category_id)
     setAmount(item.amount.toLocaleString())
     setMemo(item.memo || '')
-    setTransactionDate(new Date(item.created_at).toISOString().split('T')[0])
+    setTransactionDate(getLocalDateString(new Date(item.created_at)))
     setView('entry')
   }
 
@@ -368,6 +375,21 @@ function App() {
     if (!amount || rawAmount === 0 || (type === 'expense' && !selectedCategory)) return
 
     setIsSubmitting(true)
+
+    // Merge selected date with current time (or original time if editing)
+    const [year, month, day] = transactionDate.split('-').map(Number);
+    const dateToSave = new Date();
+    
+    if (editingId) {
+      const original = history.find(h => h.id === editingId);
+      if (original) {
+        const origDate = new Date(original.created_at);
+        dateToSave.setHours(origDate.getHours(), origDate.getMinutes(), origDate.getSeconds());
+      }
+    }
+    
+    dateToSave.setFullYear(year, month - 1, day);
+    const finalTimestamp = dateToSave.toISOString();
     
     if (editingId) {
       const { error } = await supabase
@@ -377,7 +399,7 @@ function App() {
           category_id: type === 'expense' ? selectedCategory : null,
           amount: rawAmount,
           memo: memo.trim() || null,
-          created_at: new Date(transactionDate).toISOString(),
+          created_at: finalTimestamp,
         })
         .eq('id', editingId)
 
@@ -400,7 +422,7 @@ function App() {
           category_id: type === 'expense' ? selectedCategory : null,
           amount: rawAmount,
           memo: memo.trim() || null,
-          created_at: new Date(transactionDate).toISOString(),
+          created_at: finalTimestamp,
         },
       ])
 
@@ -677,7 +699,9 @@ function App() {
                         }}
                       >
                       <div className="item-info">
-                        <div className="item-date">{new Date(item.created_at).toLocaleDateString()}</div>
+                        <div className="item-date">
+                          {new Date(item.created_at).toLocaleDateString()} {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                         <div className="item-cat">
                           {item.type === 'income' ? t('income') : (lang === 'ja' ? item.category?.name_ja : item.category?.name_zh) || t('others')}
                         </div>
