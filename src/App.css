@@ -283,6 +283,31 @@ body {
   outline: none;
 }
 
+.date-container {
+  background: var(--glass);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 16px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: -10px;
+}
+
+.date-icon {
+  color: var(--text-muted);
+}
+
+.date-container input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 0.95rem;
+  outline: none;
+  color-scheme: dark;
+}
+
 .submit-btn {
   width: 100%;
   padding: 20px;

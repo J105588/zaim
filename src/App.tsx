@@ -48,6 +48,7 @@ function App() {
   const [lastScrollY, setLastScrollY] = useState(0)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editConfirmId, setEditConfirmId] = useState<string | null>(null)
+  const [transactionDate, setTransactionDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [lastTap, setLastTap] = useState(0)
   const [touchStartTime, setTouchStartTime] = useState(0)
 
@@ -201,6 +202,7 @@ function App() {
     setSelectedCategory(null)
     setMemo('')
     setEditingId(null)
+    setTransactionDate(new Date().toISOString().split('T')[0])
   }
 
   const handleToggleLang = () => {
@@ -229,6 +231,7 @@ function App() {
     setSelectedCategory(item.category_id)
     setAmount(item.amount.toLocaleString())
     setMemo(item.memo || '')
+    setTransactionDate(new Date(item.created_at).toISOString().split('T')[0])
     setView('entry')
   }
 
@@ -374,6 +377,7 @@ function App() {
           category_id: type === 'expense' ? selectedCategory : null,
           amount: rawAmount,
           memo: memo.trim() || null,
+          created_at: new Date(transactionDate).toISOString(),
         })
         .eq('id', editingId)
 
@@ -396,6 +400,7 @@ function App() {
           category_id: type === 'expense' ? selectedCategory : null,
           amount: rawAmount,
           memo: memo.trim() || null,
+          created_at: new Date(transactionDate).toISOString(),
         },
       ])
 
@@ -551,6 +556,15 @@ function App() {
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 placeholder={t('memo_placeholder')}
+              />
+            </div>
+
+            <div className="date-container">
+              <Icons.Calendar size={18} className="date-icon" />
+              <input
+                type="date"
+                value={transactionDate}
+                onChange={(e) => setTransactionDate(e.target.value)}
               />
             </div>
             

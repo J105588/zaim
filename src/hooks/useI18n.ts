@@ -44,6 +44,7 @@ const translations = {
     edit_btn: '編集する',
     today: '今月',
     total_income: '総収入',
+    date: '日付',
   },
   zh: {
     income: '收入',
@@ -88,6 +89,7 @@ const translations = {
     edit_btn: '编辑',
     today: '本月',
     total_income: '总收入',
+    date: '日期',
   },
 }
 
