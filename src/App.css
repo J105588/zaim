@@ -131,7 +131,6 @@ body {
   flex-direction: column;
   gap: 20px;
   padding: 20px 0;
-  animation: fadeIn 0.4s ease-out;
 }
 
 .big-btn {
@@ -173,7 +172,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  animation: slideIn 0.4s ease-out;
 }
 
 .entry-header {
@@ -351,7 +349,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  animation: slideIn 0.4s ease-out;
   position: relative;
 }
 
@@ -569,7 +566,6 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-top: -16px;
-  animation: slideUp 0.4s ease-out;
 }
 
 @keyframes slideUp {
@@ -683,7 +679,6 @@ body {
 }
 
 .today-btn {
-  animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes popIn {
@@ -791,7 +786,6 @@ body {
   justify-content: center;
   height: 100%;
   gap: 30px;
-  animation: zoomIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .success-icon {
@@ -840,7 +834,6 @@ body {
   font-size: 0.9rem;
   z-index: 1000;
   box-shadow: 0 10px 30px rgba(0, 150, 255, 0.2);
-  animation: toastFade 0.4s ease-out;
 }
 
 @keyframes toastFade {
@@ -866,7 +859,6 @@ body {
   border-radius: 32px;
   padding: 40px 30px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  animation: cardAppear 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes cardAppear {
@@ -974,7 +966,6 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.3s ease-out;
 }
 
 .confirm-modal {
@@ -987,7 +978,6 @@ body {
   padding: 30px;
   text-align: center;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-  animation: modalAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes modalAppear {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase, type Category, type Transaction } from './lib/supabase'
 import { useI18n } from './hooks/useI18n'
 import * as Icons from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import './App.css'
 
 type View = 'start' | 'entry' | 'history'
@@ -96,10 +97,7 @@ function App() {
     const currentJST = getJSTYearMonth(new Date());
     return new Date(currentJST.year, currentJST.month, 1);
   })
-  const [swipingId, setSwipingId] = useState<string | null>(null)
-  const [swipeX, setSwipeX] = useState(0)
-  const [startX, setStartX] = useState(0)
-  const [baseX, setBaseX] = useState(0)
+  const [activeSwipeId, setActiveSwipeId] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'list' | 'chart'>('list')
   const [memo, setMemo] = useState('')
@@ -111,7 +109,6 @@ function App() {
   const [editConfirmId, setEditConfirmId] = useState<string | null>(null)
   const [transactionDate, setTransactionDate] = useState<string>(getJSTDateTimeString(new Date()))
   const [lastTap, setLastTap] = useState(0)
-  const [touchStartTime, setTouchStartTime] = useState(0)
 
   const familyPassword = import.meta.env.VITE_FAMILY_PASSWORD || 'family123'
 
@@ -201,17 +198,15 @@ function App() {
   // Global click/touch listener to reset swipe state when tapping elsewhere
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent | TouchEvent) => {
-      if (!swipingId) return
+      if (!activeSwipeId) return
 
-      // Find if we clicked inside a swipe-item-container
       const target = e.target as HTMLElement
       if (!target.closest('.swipe-item-container')) {
-        setSwipeX(0)
-        setTimeout(() => setSwipingId(null), 300)
+        setActiveSwipeId(null)
       }
     }
 
-    if (swipingId && swipeX !== 0) {
+    if (activeSwipeId) {
       window.addEventListener('mousedown', handleGlobalClick)
       window.addEventListener('touchstart', handleGlobalClick)
     }
@@ -220,7 +215,7 @@ function App() {
       window.removeEventListener('mousedown', handleGlobalClick)
       window.removeEventListener('touchstart', handleGlobalClick)
     }
-  }, [swipingId, swipeX])
+  }, [activeSwipeId])
 
   const fetchHistory = async (date: Date) => {
     const year = date.getFullYear();
@@ -281,8 +276,7 @@ function App() {
   const toggleHistory = () => {
     if (view === 'history') {
       setView('start')
-      setSwipingId(null)
-      setSwipeX(0)
+      setActiveSwipeId(null)
       setDeleteConfirmId(null)
       setHistoryViewMode('list')
       setEditingId(null)
@@ -322,62 +316,6 @@ function App() {
     setEditConfirmId(null)
   }
 
-  const handleTouchStart = (e: React.TouchEvent, id: string) => {
-    setTouchStartTime(Date.now())
-    setStartX(e.touches[0].clientX)
-    if (swipingId === id) {
-      setBaseX(swipeX)
-    } else {
-      setSwipingId(id)
-      setSwipeX(0)
-      setBaseX(0)
-    }
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!swipingId) return
-    const currentX = e.touches[0].clientX
-    const diff = currentX - startX
-    const newX = baseX + diff
-    setSwipeX(Math.min(0, Math.max(newX, -100)))
-  }
-
-  const handleTouchEnd = (item: Transaction) => {
-    const duration = Date.now() - touchStartTime
-    if (Math.abs(swipeX) < 5 && duration < 300) {
-      handleEditRequest(item)
-    }
-
-    if (swipeX <= -50) {
-      setSwipeX(-100)
-    } else {
-      setSwipeX(0)
-      setTimeout(() => setSwipingId(null), 100)
-    }
-  }
-
-  // Mouse support for testing/PC
-  const handleMouseDown = (e: React.MouseEvent, id: string) => {
-    setStartX(e.clientX)
-    if (swipingId === id) {
-      setBaseX(swipeX)
-    } else {
-      setSwipingId(id)
-      setSwipeX(0)
-      setBaseX(0)
-    }
-  }
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!swipingId) return
-    const diff = e.clientX - startX
-    const newX = baseX + diff
-    setSwipeX(Math.min(0, Math.max(newX, -100)))
-  }
-
-  const handleMouseUp = (item: Transaction) => {
-    handleTouchEnd(item)
-  }
 
   const handleDelete = (id: string) => {
     setDeleteConfirmId(id)
@@ -392,15 +330,13 @@ function App() {
       setHistory(prev => prev.filter(item => item.id !== deleteConfirmId))
       fetchBalance()
       setDeleteConfirmId(null)
-      setSwipingId(null)
-      setSwipeX(0)
+      setActiveSwipeId(null)
     }
   }
 
   const cancelDelete = () => {
     setDeleteConfirmId(null)
-    setSwipingId(null)
-    setSwipeX(0)
+    setActiveSwipeId(null)
   }
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -496,13 +432,26 @@ function App() {
   if (!isLoggedIn) {
     return (
       <div className="login-screen">
-        {showToast && (
-          <div className="toast">
-            <Icons.CheckCircle size={18} />
-            <span>{t('lang_switched')}</span>
-          </div>
-        )}
-        <div className="login-card">
+        <AnimatePresence>
+          {showToast && (
+            <motion.div 
+              className="toast"
+              initial={{ opacity: 0, y: -20, x: "-50%" }}
+              animate={{ opacity: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, y: -20, x: "-50%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            >
+              <Icons.CheckCircle size={18} />
+              <span>{t('lang_switched')}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <motion.div 
+          className="login-card"
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        >
           <div className="login-header">
             <div className="login-logo">
               <Icons.ShieldCheck size={40} strokeWidth={1.5} />
@@ -523,28 +472,49 @@ function App() {
                 autoFocus
               />
             </div>
-            <button className="login-btn" onClick={handleLogin}>
+            <motion.button 
+              className="login-btn" 
+              onClick={handleLogin}
+              whileTap={{ scale: 0.98 }}
+            >
               {t('login_btn')}
-            </button>
+            </motion.button>
           </div>
-        </div>
-        <div className="lang-toggle" onClick={handleToggleLang}>
+        </motion.div>
+        <motion.div 
+          className="lang-toggle" 
+          onClick={handleToggleLang}
+          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.1 }}
+        >
           <Icons.Languages size={20} />
-        </div>
+        </motion.div>
       </div>
     )
   }
 
   return (
     <div className="app-container">
-      {showToast && (
-        <div className="toast">
-          <Icons.CheckCircle size={18} />
-          <span>{t('lang_switched')}</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div 
+            className="toast"
+            initial={{ opacity: 0, y: -20, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: -20, x: "-50%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          >
+            <Icons.CheckCircle size={18} />
+            <span>{t('lang_switched')}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <header className="app-header">
-        <div className={`balance-badge ${isFetchingBalance ? 'loading' : ''}`} onClick={toggleHistory}>
+        <motion.div 
+          className={`balance-badge ${isFetchingBalance ? 'loading' : ''}`} 
+          onClick={toggleHistory}
+          whileTap={{ scale: 0.95 }}
+        >
           <div className="balance-label">{t('balance')}</div>
           <div className={`balance-value ${balance >= 0 ? 'plus' : 'minus'}`}>
             {isFetchingBalance && balance === 0 ? (
@@ -557,223 +527,383 @@ function App() {
             )}
           </div>
           <Icons.ChevronRight size={14} className={`history-arrow ${view === 'history' ? 'open' : ''}`} />
-        </div>
+        </motion.div>
       </header>
 
       <main className="main-content">
-        {showSuccess ? (
-          <div className="success-screen">
-            <div className="success-icon">
-              <Icons.CheckCircle2 size={80} strokeWidth={1.5} color="#00ff88" />
-            </div>
-            <h2>{t('success')}</h2>
-          </div>
-        ) : view === 'start' ? (
-          <div className="start-screen">
-            <button className="big-btn expense" onClick={() => handleStart('expense')}>
-              <Icons.TrendingDown size={40} />
-              <span>{t('expense')}</span>
-            </button>
-            <button className="big-btn income" onClick={() => handleStart('income')}>
-              <Icons.TrendingUp size={40} />
-              <span>{t('income')}</span>
-            </button>
-          </div>
-        ) : view === 'entry' ? (
-          <div className="entry-screen">
-            <div className="entry-header">
-              <button className="icon-btn" onClick={handleBack}><Icons.ArrowLeft size={24} /></button>
-              <h2>{editingId ? (type === 'expense' ? t('edit_expense') : t('edit_income')) : (type === 'expense' ? t('expense') : t('income'))}</h2>
-            </div>
-            
-            {type === 'expense' && (
-              <>
-                <div className="category-grid">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      className={`category-btn ${selectedCategory === cat.id ? 'selected' : ''}`}
-                      onClick={() => setSelectedCategory(cat.id)}
-                    >
-                      {renderIcon(cat.icon)}
-                      <span>{lang === 'ja' ? cat.name_ja : cat.name_zh}</span>
-                    </button>
-                  ))}
-                </div>
-                {!selectedCategory && (
-                  <div className="validation-msg">
-                    {t('select_category')}
-                  </div>
-                )}
-              </>
-            )}
-
-            <div className="input-container">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => handleAmountChange(e.target.value)}
-                placeholder="0"
-                autoFocus
-              />
-            </div>
-
-            <div className="memo-container">
-              <Icons.FileText size={18} className="memo-icon" />
-              <input
-                type="text"
-                value={memo}
-                onChange={(e) => setMemo(e.target.value)}
-                placeholder={t('memo_placeholder')}
-              />
-            </div>
-
-            <div className="date-container">
-              <Icons.CalendarClock size={18} className="date-icon" />
-              <input
-                type="datetime-local"
-                value={transactionDate}
-                onChange={(e) => setTransactionDate(e.target.value)}
-              />
-            </div>
-            
-            {amount !== '' && Number(amount.replace(/,/g, '')) === 0 && (
-              <div className="validation-msg">
-                {t('invalid_amount')}
-              </div>
-            )}
-
-            <button
-              className="submit-btn"
-              disabled={isSubmitting || !amount || Number(amount.replace(/,/g, '')) === 0 || (type === 'expense' && !selectedCategory)}
-              onClick={handleSubmit}
-              style={{ 
-                background: type === 'expense' ? 'var(--expense)' : 'var(--income)',
-                color: 'white'
-              }}
+        <AnimatePresence mode="wait">
+          {showSuccess ? (
+            <motion.div 
+              key="success"
+              className="success-screen"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
             >
-              {isSubmitting ? '...' : (editingId ? t('save') : t('submit'))}
-            </button>
-          </div>
-        ) : (
-          <div className="history-screen">
-            <div className="history-header">
-              <button className="icon-btn" onClick={() => setView('start')}><Icons.ArrowLeft size={24} /></button>
-              <h2>
-                {selectedDate.getFullYear()}{lang === 'ja' || lang === 'zh' ? (lang === 'ja' ? '年' : '年') : '.'}
-                {selectedDate.getMonth() + 1}{lang === 'ja' || lang === 'zh' ? (lang === 'ja' ? '月の収支' : '月收支概览') : ' ' + t('month_stats')}
-              </h2>
-              <div className="view-toggle">
-                <button 
-                  className={`toggle-btn ${historyViewMode === 'list' ? 'active' : ''}`}
-                  onClick={() => setHistoryViewMode('list')}
+              <motion.div 
+                className="success-icon"
+                initial={{ scale: 0.5, rotate: -45 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
+              >
+                <Icons.CheckCircle2 size={80} strokeWidth={1.5} color="#00ff88" />
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                {t('success')}
+              </motion.h2>
+            </motion.div>
+          ) : view === 'start' ? (
+            <motion.div 
+              key="start"
+              className="start-screen"
+              initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0)" }}
+              exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+            >
+              <motion.button 
+                className="big-btn expense" 
+                onClick={() => handleStart('expense')}
+                whileTap={{ scale: 0.96 }}
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              >
+                <Icons.TrendingDown size={40} />
+                <span>{t('expense')}</span>
+              </motion.button>
+              <motion.button 
+                className="big-btn income" 
+                onClick={() => handleStart('income')}
+                whileTap={{ scale: 0.96 }}
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25, delay: 0.1 }}
+              >
+                <Icons.TrendingUp size={40} />
+                <span>{t('income')}</span>
+              </motion.button>
+            </motion.div>
+          ) : view === 'entry' ? (
+            <motion.div 
+              key="entry"
+              className="entry-screen"
+              initial={{ opacity: 0, x: 20, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0)" }}
+              exit={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+            >
+              <div className="entry-header">
+                <motion.button 
+                  className="icon-btn" 
+                  onClick={handleBack}
+                  whileTap={{ scale: 0.9 }}
                 >
-                  <Icons.List size={18} />
-                  <span>{t('list_view')}</span>
-                </button>
-                <button 
-                  className={`toggle-btn ${historyViewMode === 'chart' ? 'active' : ''}`}
-                  onClick={() => setHistoryViewMode('chart')}
-                >
-                  <Icons.PieChart size={18} />
-                  <span>{t('chart_view')}</span>
-                </button>
+                  <Icons.ArrowLeft size={24} />
+                </motion.button>
+                <h2>{editingId ? (type === 'expense' ? t('edit_expense') : t('edit_income')) : (type === 'expense' ? t('expense') : t('income'))}</h2>
               </div>
-            </div>
-
-            <div className={`history-content-wrapper ${historyViewMode}`}>
-              <div className="history-list-view" onScroll={handleScroll}>
-                <div className={`search-container ${isSearchVisible ? 'visible' : 'hidden'}`}>
-                  <Icons.Search size={18} className="search-icon" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder={t('search_placeholder')}
-                  />
-                  {searchTerm && (
-                    <button className="clear-search" onClick={() => setSearchTerm('')}>
-                      <Icons.X size={16} />
-                    </button>
+              
+              {type === 'expense' && (
+                <>
+                  <motion.div className="category-grid" layout>
+                    {categories.map((cat) => (
+                      <motion.button
+                        key={cat.id}
+                        layout
+                        whileTap={{ scale: 0.95 }}
+                        className={`category-btn ${selectedCategory === cat.id ? 'selected' : ''}`}
+                        onClick={() => setSelectedCategory(cat.id)}
+                      >
+                        {renderIcon(cat.icon)}
+                        <span>{lang === 'ja' ? cat.name_ja : cat.name_zh}</span>
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                  {!selectedCategory && (
+                    <motion.div 
+                      className="validation-msg"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                    >
+                      {t('select_category')}
+                    </motion.div>
                   )}
-                </div>
-              {(() => {
-                const filteredHistory = history.filter(item => {
-                  if (!searchTerm) return true
-                  const searchLower = searchTerm.toLowerCase()
-                  const categoryName = lang === 'ja' ? item.category?.name_ja : item.category?.name_zh
-                  const memoMatch = item.memo?.toLowerCase().includes(searchLower)
-                  const categoryMatch = categoryName?.toLowerCase().includes(searchLower)
-                  const typeMatch = (item.type === 'income' ? t('income') : t('expense')).toLowerCase().includes(searchLower)
-                  return memoMatch || categoryMatch || typeMatch
-                })
+                </>
+              )}
 
-                if (filteredHistory.length === 0) {
+              <div className="input-container">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                  placeholder="0"
+                  autoFocus
+                />
+              </div>
+
+              <div className="memo-container">
+                <Icons.FileText size={18} className="memo-icon" />
+                <input
+                  type="text"
+                  value={memo}
+                  onChange={(e) => setMemo(e.target.value)}
+                  placeholder={t('memo_placeholder')}
+                />
+              </div>
+
+              <div className="date-container">
+                <Icons.CalendarClock size={18} className="date-icon" />
+                <input
+                  type="datetime-local"
+                  value={transactionDate}
+                  onChange={(e) => setTransactionDate(e.target.value)}
+                />
+              </div>
+              
+              {amount !== '' && Number(amount.replace(/,/g, '')) === 0 && (
+                <div className="validation-msg">
+                  {t('invalid_amount')}
+                </div>
+              )}
+
+              <motion.button
+                className="submit-btn"
+                disabled={isSubmitting || !amount || Number(amount.replace(/,/g, '')) === 0 || (type === 'expense' && !selectedCategory)}
+                onClick={handleSubmit}
+                whileTap={{ scale: 0.98 }}
+                style={{ 
+                  background: type === 'expense' ? 'var(--expense)' : 'var(--income)',
+                  color: 'white'
+                }}
+              >
+                {isSubmitting ? '...' : (editingId ? t('save') : t('submit'))}
+              </motion.button>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="history"
+              className="history-screen"
+              initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0)" }}
+              exit={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              <div className="history-header">
+                <motion.button 
+                  className="icon-btn" 
+                  onClick={() => setView('start')}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <Icons.ArrowLeft size={24} />
+                </motion.button>
+                <h2>
+                  {selectedDate.getFullYear()}{lang === 'ja' || lang === 'zh' ? (lang === 'ja' ? '年' : '年') : '.'}
+                  {selectedDate.getMonth() + 1}{lang === 'ja' || lang === 'zh' ? (lang === 'ja' ? '月の収支' : '月收支概览') : ' ' + t('month_stats')}
+                </h2>
+                <div className="view-toggle">
+                  <button 
+                    className={`toggle-btn ${historyViewMode === 'list' ? 'active' : ''}`}
+                    onClick={() => setHistoryViewMode('list')}
+                  >
+                    <Icons.List size={18} />
+                    <span>{t('list_view')}</span>
+                  </button>
+                  <button 
+                    className={`toggle-btn ${historyViewMode === 'chart' ? 'active' : ''}`}
+                    onClick={() => setHistoryViewMode('chart')}
+                  >
+                    <Icons.PieChart size={18} />
+                    <span>{t('chart_view')}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className={`history-content-wrapper ${historyViewMode}`}>
+                <div className="history-list-view" onScroll={handleScroll}>
+                  <AnimatePresence>
+                    {isSearchVisible && (
+                      <motion.div 
+                        className="search-container"
+                        initial={{ height: 0, opacity: 0, marginBottom: 0, scaleY: 0.8 }}
+                        animate={{ height: "auto", opacity: 1, marginBottom: 20, scaleY: 1 }}
+                        exit={{ height: 0, opacity: 0, marginBottom: 0, scaleY: 0.8 }}
+                        transition={{ duration: 0.25, ease: "easeInOut" }}
+                      >
+                        <Icons.Search size={18} className="search-icon" />
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          placeholder={t('search_placeholder')}
+                        />
+                        {searchTerm && (
+                          <motion.button 
+                            className="clear-search" 
+                            onClick={() => setSearchTerm('')}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                          >
+                            <Icons.X size={16} />
+                          </motion.button>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                {(() => {
+                  const filteredHistory = history.filter(item => {
+                    if (!searchTerm) return true
+                    const searchLower = searchTerm.toLowerCase()
+                    const categoryName = lang === 'ja' ? item.category?.name_ja : item.category?.name_zh
+                    const memoMatch = item.memo?.toLowerCase().includes(searchLower)
+                    const categoryMatch = categoryName?.toLowerCase().includes(searchLower)
+                    const typeMatch = (item.type === 'income' ? t('income') : t('expense')).toLowerCase().includes(searchLower)
+                    return memoMatch || categoryMatch || typeMatch
+                  })
+
+                  if (filteredHistory.length === 0) {
+                    return (
+                      <div className="empty-state">
+                        <Icons.Inbox size={48} strokeWidth={1} />
+                        <p>{t('no_data')}</p>
+                      </div>
+                    )
+                  }
+
                   return (
+                    <motion.div layout>
+                      {filteredHistory.map((item) => {
+                        const isOpen = activeSwipeId === item.id;
+                        return (
+                          <div 
+                            key={item.id} 
+                            className="swipe-item-container"
+                          >
+                            <button 
+                              className="delete-action"
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              <Icons.Trash2 size={20} />
+                            </button>
+                            <motion.div 
+                              className="history-item"
+                              drag="x"
+                              dragConstraints={{ left: -100, right: 0 }}
+                              dragElastic={{ left: 0.1, right: 0.02 }}
+                              animate={{ x: isOpen ? -100 : 0 }}
+                              transition={{ type: 'spring', stiffness: 350, damping: 35 }}
+                              onDragStart={() => {
+                                setActiveSwipeId(item.id);
+                              }}
+                              onDragEnd={(_, info) => {
+                                if (info.offset.x < -40 || info.velocity.x < -50) {
+                                  setActiveSwipeId(item.id);
+                                } else {
+                                  setActiveSwipeId(null);
+                                }
+                              }}
+                              onClick={() => {
+                                if (isOpen) {
+                                  setActiveSwipeId(null);
+                                } else {
+                                  handleEditRequest(item);
+                                }
+                              }}
+                            >
+                              <div className="item-info">
+                                <div className="item-date">
+                                  {formatJSTDate(item.created_at)} {formatJSTTime(item.created_at)}
+                                </div>
+                                <div className="item-cat">
+                                  {item.type === 'income' ? t('income') : (lang === 'ja' ? item.category?.name_ja : item.category?.name_zh) || t('others')}
+                                </div>
+                                {item.memo && <div className="item-memo">{item.memo}</div>}
+                              </div>
+                              <div className={`item-amount ${item.type}`}>
+                                {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
+                              </div>
+                            </motion.div>
+                          </div>
+                        );
+                      })}
+                    </motion.div>
+                  )
+                })()}
+                </div>
+
+                <div className="history-chart-view">
+                  {history.filter(item => item.type === 'expense').length === 0 ? (
                     <div className="empty-state">
                       <Icons.Inbox size={48} strokeWidth={1} />
                       <p>{t('no_data')}</p>
                     </div>
-                  )
-                }
-
-                return filteredHistory.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="swipe-item-container"
-                  >
-                    <button 
-                      className="delete-action"
-                      onClick={() => handleDelete(item.id)}
-                    >
-                      <Icons.Trash2 size={20} />
-                    </button>
-                      <div 
-                        className="history-item"
-                        onTouchStart={(e) => handleTouchStart(e, item.id)}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={() => handleTouchEnd(item)}
-                        onMouseDown={(e) => {
-                          setTouchStartTime(Date.now())
-                          handleMouseDown(e, item.id)
-                        }}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={() => handleMouseUp(item)}
-                        onMouseLeave={() => handleMouseUp(item)}
-                        style={{ 
-                          transform: swipingId === item.id ? `translateX(${swipeX}px)` : 'translateX(0)',
-                          transition: swipeX === 0 || swipeX === -100 ? 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)' : 'none'
-                        }}
-                      >
-                      <div className="item-info">
-                        <div className="item-date">
-                          {formatJSTDate(item.created_at)} {formatJSTTime(item.created_at)}
+                  ) : (
+                    <div className="analytics-container">
+                      <div className="chart-wrapper">
+                        <svg viewBox="0 0 100 100" className="pie-chart">
+                          {(() => {
+                            const expenses = history.filter(item => item.type === 'expense')
+                            const totals = expenses.reduce((acc: any, item: any) => {
+                              const catId = item.category_id || 'others'
+                              const amount = Number(item.amount)
+                              acc[catId] = (acc[catId] || 0) + amount
+                              return acc
+                            }, {})
+                            
+                            const total = Object.values(totals).reduce((a: any, b: any) => a + b, 0) as number
+                            let startAngle = 0
+                            const colors = ['#00d2ff', '#00ff88', '#ff4d4d', '#ff9f43', '#a29bfe', '#fab1a0', '#00cec9', '#ffeaa7']
+                            
+                            return Object.entries(totals).map(([catId, amount], index) => {
+                              const percentage = (amount as number) / total
+                              const angle = percentage * 360
+                              const endAngle = startAngle + angle
+                              
+                              const x1 = 50 + 40 * Math.cos(Math.PI * (startAngle - 90) / 180)
+                              const y1 = 50 + 40 * Math.sin(Math.PI * (startAngle - 90) / 180)
+                              const x2 = 50 + 40 * Math.cos(Math.PI * (endAngle - 90) / 180)
+                              const y2 = 50 + 40 * Math.sin(Math.PI * (endAngle - 90) / 180)
+                              
+                              const largeArcFlag = angle > 180 ? 1 : 0
+                              const pathData = `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`
+                              
+                              startAngle += angle
+                              
+                              const category = categories.find(c => c.id === catId)
+                              const name = lang === 'ja' ? category?.name_ja : category?.name_zh
+                              
+                              return (
+                                <motion.path 
+                                  key={catId} 
+                                  d={pathData} 
+                                  fill={colors[index % colors.length]} 
+                                  stroke="var(--bg)" 
+                                  strokeWidth="2"
+                                  initial={{ pathLength: 0, opacity: 0 }}
+                                  animate={{ pathLength: 1, opacity: 1 }}
+                                  transition={{ duration: 0.5, delay: index * 0.05 }}
+                                >
+                                  <title>{name}: {Number(amount).toLocaleString()}</title>
+                                </motion.path>
+                              )
+                            })
+                          })()}
+                        </svg>
+                        <div className="chart-center">
+                          <div className="center-label">{t('expense')}</div>
+                          <div className="center-value">
+                            {history.filter(item => item.type === 'expense').reduce((sum, item) => sum + Number(item.amount), 0).toLocaleString()}
+                          </div>
                         </div>
-                        <div className="item-cat">
-                          {item.type === 'income' ? t('income') : (lang === 'ja' ? item.category?.name_ja : item.category?.name_zh) || t('others')}
-                        </div>
-                        {item.memo && <div className="item-memo">{item.memo}</div>}
                       </div>
-                      <div className={`item-amount ${item.type}`}>
-                        {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              })()}
-              </div>
 
-              <div className="history-chart-view">
-                {history.filter(item => item.type === 'expense').length === 0 ? (
-                  <div className="empty-state">
-                    <Icons.Inbox size={48} strokeWidth={1} />
-                    <p>{t('no_data')}</p>
-                  </div>
-                ) : (
-                  <div className="analytics-container">
-                    <div className="chart-wrapper">
-                      <svg viewBox="0 0 100 100" className="pie-chart">
+                      <div className="chart-legend">
                         {(() => {
                           const expenses = history.filter(item => item.type === 'expense')
                           const totals = expenses.reduce((acc: any, item: any) => {
@@ -782,174 +912,169 @@ function App() {
                             acc[catId] = (acc[catId] || 0) + amount
                             return acc
                           }, {})
-                          
                           const total = Object.values(totals).reduce((a: any, b: any) => a + b, 0) as number
-                          let startAngle = 0
                           const colors = ['#00d2ff', '#00ff88', '#ff4d4d', '#ff9f43', '#a29bfe', '#fab1a0', '#00cec9', '#ffeaa7']
-                          
-                          return Object.entries(totals).map(([catId, amount], index) => {
-                            const percentage = (amount as number) / total
-                            const angle = percentage * 360
-                            const endAngle = startAngle + angle
-                            
-                            // Drawing sector
-                            const x1 = 50 + 40 * Math.cos(Math.PI * (startAngle - 90) / 180)
-                            const y1 = 50 + 40 * Math.sin(Math.PI * (startAngle - 90) / 180)
-                            const x2 = 50 + 40 * Math.cos(Math.PI * (endAngle - 90) / 180)
-                            const y2 = 50 + 40 * Math.sin(Math.PI * (endAngle - 90) / 180)
-                            
-                            const largeArcFlag = angle > 180 ? 1 : 0
-                            const pathData = `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`
-                            
-                            startAngle += angle
-                            
-                            const category = categories.find(c => c.id === catId)
-                            const name = lang === 'ja' ? category?.name_ja : category?.name_zh
-                            
-                            return (
-                              <path 
-                                key={catId} 
-                                d={pathData} 
-                                fill={colors[index % colors.length]} 
-                                stroke="var(--bg)" 
-                                strokeWidth="2"
-                              >
-                                <title>{name}: {Number(amount).toLocaleString()}</title>
-                              </path>
-                            )
-                          })
+
+                          return Object.entries(totals)
+                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                            .map(([catId, amount], index) => {
+                              const category = categories.find(c => c.id === catId)
+                              const name = (lang === 'ja' ? category?.name_ja : category?.name_zh) || t('others')
+                              const percentage = Math.round(((amount as number) / total) * 100)
+                              
+                              return (
+                                <motion.div 
+                                  key={catId} 
+                                  className="legend-item"
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.05 }}
+                                >
+                                  <div className="legend-dot" style={{ backgroundColor: colors[index % colors.length] }}></div>
+                                  <div className="legend-info">
+                                    <span className="legend-name">{name}</span>
+                                    <span className="legend-percent">{percentage}%</span>
+                                  </div>
+                                  <div className="legend-amount">{Number(amount).toLocaleString()}</div>
+                                </motion.div>
+                              )
+                            })
                         })()}
-                      </svg>
-                      <div className="chart-center">
-                        <div className="center-label">{t('expense')}</div>
-                        <div className="center-value">
-                          {history.filter(item => item.type === 'expense').reduce((sum, item) => sum + Number(item.amount), 0).toLocaleString()}
+                      </div>
+
+                      <motion.div 
+                        className="income-summary"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3, type: "spring" }}
+                      >
+                        <div className="summary-label">
+                          <Icons.TrendingUp size={18} />
+                          <span>{t('total_income')}</span>
                         </div>
-                      </div>
+                        <div className="summary-amount">
+                          {history
+                            .filter(item => item.type === 'income')
+                            .reduce((sum, item) => sum + Number(item.amount), 0)
+                            .toLocaleString()}
+                        </div>
+                      </motion.div>
                     </div>
-
-                    <div className="chart-legend">
-                      {(() => {
-                        const expenses = history.filter(item => item.type === 'expense')
-                        const totals = expenses.reduce((acc: any, item: any) => {
-                          const catId = item.category_id || 'others'
-                          const amount = Number(item.amount)
-                          acc[catId] = (acc[catId] || 0) + amount
-                          return acc
-                        }, {})
-                        const total = Object.values(totals).reduce((a: any, b: any) => a + b, 0) as number
-                        const colors = ['#00d2ff', '#00ff88', '#ff4d4d', '#ff9f43', '#a29bfe', '#fab1a0', '#00cec9', '#ffeaa7']
-
-                        return Object.entries(totals)
-                          .sort(([, a], [, b]) => (b as number) - (a as number))
-                          .map(([catId, amount], index) => {
-                            const category = categories.find(c => c.id === catId)
-                            const name = (lang === 'ja' ? category?.name_ja : category?.name_zh) || t('others')
-                            const percentage = Math.round(((amount as number) / total) * 100)
-                            
-                            return (
-                              <div key={catId} className="legend-item">
-                                <div className="legend-dot" style={{ backgroundColor: colors[index % colors.length] }}></div>
-                                <div className="legend-info">
-                                  <span className="legend-name">{name}</span>
-                                  <span className="legend-percent">{percentage}%</span>
-                                </div>
-                                <div className="legend-amount">{Number(amount).toLocaleString()}</div>
-                              </div>
-                            )
-                          })
-                      })()}
-                    </div>
-
-                    <div className="income-summary">
-                      <div className="summary-label">
-                        <Icons.TrendingUp size={18} />
-                        <span>{t('total_income')}</span>
-                      </div>
-                      <div className="summary-amount">
-                        {history
-                          .filter(item => item.type === 'income')
-                          .reduce((sum, item) => sum + Number(item.amount), 0)
-                          .toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="history-nav">
-              <button className="nav-btn" onClick={() => changeMonth(-1)}>
-                <Icons.ChevronLeft size={20} />
-                {t('prev_month')}
-              </button>
-              {(() => {
-                const currentJST = getJSTYearMonth(new Date());
-                const isCurrentMonth = selectedDate.getMonth() === currentJST.month && selectedDate.getFullYear() === currentJST.year;
-                if (isCurrentMonth) return null;
-                return (
-                  <button className="nav-btn today-btn" onClick={() => {
-                    const target = new Date(currentJST.year, currentJST.month, 1);
-                    setSelectedDate(target);
-                    fetchHistory(target);
-                  }}>
-                    <Icons.CalendarClock size={20} />
-                    <span>{t('today')}</span>
-                  </button>
-                );
-              })()}
-              <button className="nav-btn" onClick={() => changeMonth(1)}>
-                {t('next_month')}
-                <Icons.ChevronRight size={20} />
-              </button>
-            </div>
-          </div>
-        )}
+              <div className="history-nav">
+                <motion.button className="nav-btn" onClick={() => changeMonth(-1)} whileTap={{ scale: 0.95 }}>
+                  <Icons.ChevronLeft size={20} />
+                  {t('prev_month')}
+                </motion.button>
+                {(() => {
+                  const currentJST = getJSTYearMonth(new Date());
+                  const isCurrentMonth = selectedDate.getMonth() === currentJST.month && selectedDate.getFullYear() === currentJST.year;
+                  if (isCurrentMonth) return null;
+                  return (
+                    <motion.button 
+                      className="nav-btn today-btn" 
+                      whileTap={{ scale: 0.95 }}
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring" }}
+                      onClick={() => {
+                        const target = new Date(currentJST.year, currentJST.month, 1);
+                        setSelectedDate(target);
+                        fetchHistory(target);
+                      }}
+                    >
+                      <Icons.CalendarClock size={20} />
+                      <span>{t('today')}</span>
+                    </motion.button>
+                  );
+                })()}
+                <motion.button className="nav-btn" onClick={() => changeMonth(1)} whileTap={{ scale: 0.95 }}>
+                  {t('next_month')}
+                  <Icons.ChevronRight size={20} />
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
-      <div className="lang-toggle" onClick={handleToggleLang}>
+      <motion.div 
+        className="lang-toggle" 
+        onClick={handleToggleLang}
+        whileTap={{ scale: 0.9 }}
+        whileHover={{ scale: 1.1 }}
+      >
         <Icons.Languages size={20} />
-      </div>
+      </motion.div>
 
-      {deleteConfirmId && (
-        <div className="modal-overlay">
-          <div className="confirm-modal">
-            <div className="modal-icon">
-              <Icons.AlertTriangle size={36} color="var(--expense)" />
-            </div>
-            <h3>{t('delete_confirm_title')}</h3>
-            <p>{t('delete_confirm_msg')}</p>
-            <div className="modal-actions">
-              <button className="modal-btn cancel" onClick={cancelDelete}>
-                {t('cancel')}
-              </button>
-              <button className="modal-btn delete" onClick={executeDelete}>
-                {t('delete_btn')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <motion.div 
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="confirm-modal"
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            >
+              <div className="modal-icon">
+                <Icons.AlertTriangle size={36} color="var(--expense)" />
+              </div>
+              <h3>{t('delete_confirm_title')}</h3>
+              <p>{t('delete_confirm_msg')}</p>
+              <div className="modal-actions">
+                <motion.button className="modal-btn cancel" onClick={cancelDelete} whileTap={{ scale: 0.96 }}>
+                  {t('cancel')}
+                </motion.button>
+                <motion.button className="modal-btn delete" onClick={executeDelete} whileTap={{ scale: 0.96 }}>
+                  {t('delete_btn')}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {editConfirmId && (
-        <div className="modal-overlay">
-          <div className="confirm-modal">
-            <div className="modal-icon">
-              <Icons.Edit3 size={36} color="var(--accent)" />
-            </div>
-            <h3>{t('edit_confirm_title')}</h3>
-            <p>{t('edit_confirm_msg')}</p>
-            <div className="modal-actions">
-              <button className="modal-btn cancel" onClick={cancelEdit}>
-                {t('cancel')}
-              </button>
-              <button className="modal-btn edit" onClick={executeEdit}>
-                {t('edit_btn')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {editConfirmId && (
+          <motion.div 
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="confirm-modal"
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            >
+              <div className="modal-icon">
+                <Icons.Edit3 size={36} color="var(--accent)" />
+              </div>
+              <h3>{t('edit_confirm_title')}</h3>
+              <p>{t('edit_confirm_msg')}</p>
+              <div className="modal-actions">
+                <motion.button className="modal-btn cancel" onClick={cancelEdit} whileTap={{ scale: 0.96 }}>
+                  {t('cancel')}
+                </motion.button>
+                <motion.button className="modal-btn edit" onClick={executeEdit} whileTap={{ scale: 0.96 }}>
+                  {t('edit_btn')}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
