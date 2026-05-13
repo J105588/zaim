@@ -8,6 +8,63 @@ type View = 'start' | 'entry' | 'history'
 
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
+// --- JST Utilities ---
+// 日本時間の現在日時文字列 (YYYY-MM-DDThh:mm) を取得
+const getJSTDateTimeString = (date: Date) => {
+  const formatter = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(date);
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}`;
+};
+
+// YYYY-MM-DDThh:mm を JST として解釈して Date オブジェクトにする
+const parseJSTDateTime = (dateTimeStr: string): Date => {
+  return new Date(`${dateTimeStr}:00+09:00`);
+};
+
+// 表示用 JST フォーマット
+const formatJSTDate = (isoString: string) => {
+  const date = new Date(isoString);
+  return date.toLocaleDateString('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+};
+
+const formatJSTTime = (isoString: string) => {
+  const date = new Date(isoString);
+  return date.toLocaleTimeString('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
+
+// JSTの現在の年と月を取得するヘルパー
+const getJSTYearMonth = (date: Date) => {
+  const formatter = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+  });
+  const parts = formatter.formatToParts(date);
+  const year = Number(parts.find(p => p.type === 'year')?.value);
+  const month = Number(parts.find(p => p.type === 'month')?.value) - 1; // Month index 0-11
+  return { year, month };
+};
+// ---------------------
+
 function App() {
   useRegisterSW({
     onRegistered(r: ServiceWorkerRegistration | undefined) {
@@ -35,7 +92,10 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [showToast, setShowToast] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const currentJST = getJSTYearMonth(new Date());
+    return new Date(currentJST.year, currentJST.month, 1);
+  })
   const [swipingId, setSwipingId] = useState<string | null>(null)
   const [swipeX, setSwipeX] = useState(0)
   const [startX, setStartX] = useState(0)
@@ -46,16 +106,10 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isSearchVisible, setIsSearchVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
-  const getLocalDateString = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editConfirmId, setEditConfirmId] = useState<string | null>(null)
-  const [transactionDate, setTransactionDate] = useState<string>(getLocalDateString(new Date()))
+  const [transactionDate, setTransactionDate] = useState<string>(getJSTDateTimeString(new Date()))
   const [lastTap, setLastTap] = useState(0)
   const [touchStartTime, setTouchStartTime] = useState(0)
 
@@ -169,14 +223,20 @@ function App() {
   }, [swipingId, swipeX])
 
   const fetchHistory = async (date: Date) => {
-    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1)
-    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const lastDay = new Date(year, month, 0).getDate();
+    const monthStr = String(month).padStart(2, '0');
+    const lastDayStr = String(lastDay).padStart(2, '0');
+
+    const startOfMonthStr = `${year}-${monthStr}-01T00:00:00+09:00`;
+    const endOfMonthStr = `${year}-${monthStr}-${lastDayStr}T23:59:59.999+09:00`;
 
     const { data, error } = await supabase
       .from('transactions')
       .select('*, category:categories(*)')
-      .gte('created_at', startOfMonth.toISOString())
-      .lte('created_at', endOfMonth.toISOString())
+      .gte('created_at', new Date(startOfMonthStr).toISOString())
+      .lte('created_at', new Date(endOfMonthStr).toISOString())
       .order('created_at', { ascending: false })
 
     if (error) console.error(error)
@@ -209,7 +269,7 @@ function App() {
     setSelectedCategory(null)
     setMemo('')
     setEditingId(null)
-    setTransactionDate(getLocalDateString(new Date()))
+    setTransactionDate(getJSTDateTimeString(new Date()))
   }
 
   const handleToggleLang = () => {
@@ -238,7 +298,7 @@ function App() {
     setSelectedCategory(item.category_id)
     setAmount(item.amount.toLocaleString())
     setMemo(item.memo || '')
-    setTransactionDate(getLocalDateString(new Date(item.created_at)))
+    setTransactionDate(getJSTDateTimeString(new Date(item.created_at)))
     setView('entry')
   }
 
@@ -376,20 +436,8 @@ function App() {
 
     setIsSubmitting(true)
 
-    // Merge selected date with current time (or original time if editing)
-    const [year, month, day] = transactionDate.split('-').map(Number);
-    const dateToSave = new Date();
-    
-    if (editingId) {
-      const original = history.find(h => h.id === editingId);
-      if (original) {
-        const origDate = new Date(original.created_at);
-        dateToSave.setHours(origDate.getHours(), origDate.getMinutes(), origDate.getSeconds());
-      }
-    }
-    
-    dateToSave.setFullYear(year, month - 1, day);
-    const finalTimestamp = dateToSave.toISOString();
+    // Convert the user-selected datetime in input format to UTC ISO string, interpreting input as JST
+    const finalTimestamp = parseJSTDateTime(transactionDate).toISOString();
     
     if (editingId) {
       const { error } = await supabase
@@ -582,9 +630,9 @@ function App() {
             </div>
 
             <div className="date-container">
-              <Icons.Calendar size={18} className="date-icon" />
+              <Icons.CalendarClock size={18} className="date-icon" />
               <input
-                type="date"
+                type="datetime-local"
                 value={transactionDate}
                 onChange={(e) => setTransactionDate(e.target.value)}
               />
@@ -700,7 +748,7 @@ function App() {
                       >
                       <div className="item-info">
                         <div className="item-date">
-                          {new Date(item.created_at).toLocaleDateString()} {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatJSTDate(item.created_at)} {formatJSTTime(item.created_at)}
                         </div>
                         <div className="item-cat">
                           {item.type === 'income' ? t('income') : (lang === 'ja' ? item.category?.name_ja : item.category?.name_zh) || t('others')}
@@ -835,17 +883,21 @@ function App() {
                 <Icons.ChevronLeft size={20} />
                 {t('prev_month')}
               </button>
-              {!(selectedDate.getMonth() === new Date().getMonth() && selectedDate.getFullYear() === new Date().getFullYear()) && (
-                <button className="nav-btn today-btn" onClick={() => {
-                  const now = new Date()
-                  const target = new Date(now.getFullYear(), now.getMonth(), 1)
-                  setSelectedDate(target)
-                  fetchHistory(target)
-                }}>
-                  <Icons.CalendarClock size={20} />
-                  <span>{t('today')}</span>
-                </button>
-              )}
+              {(() => {
+                const currentJST = getJSTYearMonth(new Date());
+                const isCurrentMonth = selectedDate.getMonth() === currentJST.month && selectedDate.getFullYear() === currentJST.year;
+                if (isCurrentMonth) return null;
+                return (
+                  <button className="nav-btn today-btn" onClick={() => {
+                    const target = new Date(currentJST.year, currentJST.month, 1);
+                    setSelectedDate(target);
+                    fetchHistory(target);
+                  }}>
+                    <Icons.CalendarClock size={20} />
+                    <span>{t('today')}</span>
+                  </button>
+                );
+              })()}
               <button className="nav-btn" onClick={() => changeMonth(1)}>
                 {t('next_month')}
                 <Icons.ChevronRight size={20} />
