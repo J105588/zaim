@@ -62,11 +62,6 @@ body {
   align-items: center;
   gap: 12px;
   cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.balance-badge:active {
-  transform: scale(0.95);
 }
 
 .balance-label {
@@ -145,7 +140,6 @@ body {
   font-size: 1.5rem;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s, opacity 0.2s;
 }
 
 .big-btn.expense {
@@ -160,10 +154,6 @@ body {
   color: white;
   box-shadow: 0 15px 35px rgba(0, 255, 136, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.big-btn:active {
-  transform: scale(0.96) translateY(2px);
 }
 
 /* Entry Screen */
@@ -210,7 +200,7 @@ body {
   align-items: center;
   gap: 8px;
   font-size: 0.8rem;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
   cursor: pointer;
 }
 
@@ -218,7 +208,6 @@ body {
   background: rgba(255, 255, 255, 0.15);
   border-color: var(--accent);
   color: var(--text);
-  transform: scale(1.05);
 }
 
 .validation-msg {
@@ -675,12 +664,7 @@ body {
   color: white;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
-}
-
-.nav-btn:active {
-  background: rgba(255, 255, 255, 0.1);
-  transform: scale(0.95);
+  transition: background-color 0.3s, border-color 0.3s;
 }
 
 .history-item {
@@ -694,7 +678,7 @@ body {
   position: relative;
   z-index: 2;
   width: 100%;
-  transition: transform 0.1s ease-out, background-color 0.2s;
+  transition: background-color 0.2s;
   touch-action: pan-y;
   cursor: pointer;
 }
@@ -927,12 +911,8 @@ body {
   font-size: 1.1rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background-color 0.3s, box-shadow 0.3s, opacity 0.3s;
   box-shadow: 0 4px 15px rgba(0, 150, 255, 0.2);
-}
-
-.login-btn:active {
-  transform: scale(0.98);
 }
 
 @keyframes fadeIn {
@@ -1015,7 +995,7 @@ body {
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, box-shadow 0.2s, border-color 0.2s;
   color: white; /* Ensure text is white by default */
 }
 
@@ -1035,10 +1015,6 @@ body {
   background: var(--accent);
   color: white;
   box-shadow: 0 4px 12px rgba(0, 210, 255, 0.3);
-}
-
-.modal-btn:active {
-  transform: scale(0.96);
 }
 
 input::-webkit-outer-spin-button,
