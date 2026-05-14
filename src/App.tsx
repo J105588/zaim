@@ -102,6 +102,7 @@ function App() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'list' | 'chart'>('list')
   const [isChartTabLoading, setIsChartTabLoading] = useState(false)
+  const [drilldownCategoryId, setDrilldownCategoryId] = useState<string | null>(null)
   const [memo, setMemo] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [isSearchVisible, setIsSearchVisible] = useState(true)
@@ -779,7 +780,14 @@ function App() {
                       const memoMatch = item.memo?.toLowerCase().includes(searchLower)
                       const categoryMatch = categoryName?.toLowerCase().includes(searchLower)
                       const typeMatch = (item.type === 'income' ? t('income') : t('expense')).toLowerCase().includes(searchLower)
-                      return memoMatch || categoryMatch || typeMatch
+                      
+                      // Amount matching (absolute, plain string, and formatted locale strings)
+                      const amountStr = String(item.amount)
+                      const amountLocaleStr = item.amount.toLocaleString()
+                      const normalizedSearch = searchLower.replace(/,/g, '')
+                      const amountMatch = amountStr.includes(normalizedSearch) || amountLocaleStr.includes(searchLower)
+
+                      return memoMatch || categoryMatch || typeMatch || amountMatch
                     })
 
                     if (filteredHistory.length === 0) {
@@ -989,10 +997,12 @@ function App() {
                                   return (
                                     <motion.div
                                       key={catId}
-                                      className="legend-item"
+                                      className="legend-item clickable"
                                       initial={{ opacity: 0, x: -10 }}
                                       animate={{ opacity: 1, x: 0 }}
                                       transition={{ delay: index * 0.05 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      onClick={() => setDrilldownCategoryId(catId)}
                                     >
                                       <div className="legend-dot" style={{ backgroundColor: colors[index % colors.length] }}></div>
                                       <div className="legend-info">
@@ -1007,10 +1017,13 @@ function App() {
                           </div>
 
                           <motion.div
-                            className="income-summary"
+                            className="income-summary clickable"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3, type: "spring" }}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => setDrilldownCategoryId('__income__')}
                           >
                             <div className="summary-label">
                               <Icons.TrendingUp size={18} />
@@ -1136,6 +1149,77 @@ function App() {
                 <motion.button className="modal-btn edit" onClick={executeEdit} whileTap={{ scale: 0.96 }}>
                   {t('edit_btn')}
                 </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {drilldownCategoryId && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setDrilldownCategoryId(null)}
+          >
+            <motion.div
+              className="drilldown-modal"
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="drilldown-header">
+                <div className="drilldown-title">
+                  <h3>
+                    {(() => {
+                      if (drilldownCategoryId === '__income__') return t('total_income')
+                      if (drilldownCategoryId === 'others') return t('others')
+                      const cat = categories.find(c => c.id === drilldownCategoryId)
+                      return lang === 'ja' ? cat?.name_ja : cat?.name_zh
+                    })()}
+                  </h3>
+                  <span className={`drilldown-subtitle ${drilldownCategoryId === '__income__' ? 'income' : 'expense'}`}>
+                    {drilldownCategoryId === '__income__' ? t('income') : t('expense')}
+                  </span>
+                </div>
+                <motion.button 
+                  className="drilldown-close-btn" 
+                  onClick={() => setDrilldownCategoryId(null)}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <Icons.X size={20} />
+                </motion.button>
+              </div>
+              
+              <div className="drilldown-list">
+                {(() => {
+                  const isIncomeMode = drilldownCategoryId === '__income__'
+                  const filtered = history.filter(item => {
+                    if (isIncomeMode) return item.type === 'income'
+                    return item.type === 'expense' && 
+                      (item.category_id === drilldownCategoryId || (drilldownCategoryId === 'others' && !item.category_id))
+                  })
+                  
+                  if (filtered.length === 0) return <p className="drilldown-empty">No details found</p>
+                  
+                  return filtered.map(item => (
+                    <div key={item.id} className="drilldown-item">
+                      <div className="drilldown-item-left">
+                        <span className="drilldown-item-date">{formatJSTDate(item.created_at)} {formatJSTTime(item.created_at)}</span>
+                        {item.memo && <span className="drilldown-item-memo">{item.memo}</span>}
+                      </div>
+                      <div className="drilldown-item-right">
+                        <span className={`drilldown-item-amount ${item.type}`}>
+                          {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                })()}
               </div>
             </motion.div>
           </motion.div>

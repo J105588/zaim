@@ -581,6 +581,15 @@ body {
   margin-top: -16px;
 }
 
+.income-summary.clickable {
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.income-summary.clickable:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
 @keyframes slideUp {
   from { transform: translateY(10px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
@@ -1022,6 +1031,155 @@ body {
   transition: background-color 0.2s, box-shadow 0.2s, border-color 0.2s;
   color: white; /* Ensure text is white by default */
 }
+
+/* Legend Interactivity */
+.legend-item.clickable {
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin: 0 -12px;
+}
+
+.legend-item.clickable:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Drilldown Modal Styles */
+.drilldown-modal {
+  background: rgba(22, 28, 42, 0.85);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 28px;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  position: relative;
+}
+
+.drilldown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.drilldown-title h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.drilldown-subtitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--expense);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 2px;
+  display: block;
+}
+
+.drilldown-subtitle.income {
+  color: var(--income);
+}
+
+.drilldown-close-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.drilldown-close-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.drilldown-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drilldown-list::-webkit-scrollbar {
+  width: 4px;
+}
+.drilldown-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.drilldown-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.drilldown-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 0.2s;
+}
+
+.drilldown-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drilldown-item-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.drilldown-item-memo {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.drilldown-item-right {
+  text-align: right;
+}
+
+.drilldown-item-amount {
+  font-weight: 700;
+  color: var(--expense);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.drilldown-item-amount.income {
+  color: var(--income);
+}
+
+.drilldown-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 32px 0;
+  font-size: 0.9rem;
+}
+
 
 .modal-btn.cancel {
   background: rgba(255, 255, 255, 0.05);
