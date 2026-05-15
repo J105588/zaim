@@ -513,10 +513,19 @@ body {
   margin: 0 auto;
 }
 
+.chart-svg-container {
+  width: 100%;
+  height: 100%;
+  will-change: transform, opacity;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+}
+
 .pie-chart {
   width: 100%;
   height: 100%;
-  transform-origin: center;
   filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3));
 }
 

@@ -896,9 +896,8 @@ function App() {
                           transition={{ duration: 0.3 }}
                         >
                           <div className="chart-wrapper">
-                            <motion.svg
-                              viewBox="0 0 100 100"
-                              className="pie-chart"
+                            <motion.div
+                              className="chart-svg-container"
                               initial={{ rotate: -270, scale: 0.6, opacity: 0 }}
                               animate={{ rotate: -90, scale: 1, opacity: 1 }}
                               transition={{
@@ -909,54 +908,59 @@ function App() {
                                 delay: 0.1
                               }}
                             >
-                              {(() => {
-                                const expenses = history.filter(item => item.type === 'expense')
-                                const totals = expenses.reduce((acc: any, item: any) => {
-                                  const catId = item.category_id || 'others'
-                                  const amount = Number(item.amount)
-                                  acc[catId] = (acc[catId] || 0) + amount
-                                  return acc
-                                }, {})
+                              <svg
+                                viewBox="0 0 100 100"
+                                className="pie-chart"
+                              >
+                                {(() => {
+                                  const expenses = history.filter(item => item.type === 'expense')
+                                  const totals = expenses.reduce((acc: any, item: any) => {
+                                    const catId = item.category_id || 'others'
+                                    const amount = Number(item.amount)
+                                    acc[catId] = (acc[catId] || 0) + amount
+                                    return acc
+                                  }, {})
 
-                                const total = Object.values(totals).reduce((a: any, b: any) => a + b, 0) as number
-                                let startAngle = 0
-                                const colors = ['#00d2ff', '#00ff88', '#ff4d4d', '#ff9f43', '#a29bfe', '#fab1a0', '#00cec9', '#ffeaa7']
+                                  const total = Object.values(totals).reduce((a: any, b: any) => a + b, 0) as number
+                                  let startAngle = 0
+                                  const colors = ['#00d2ff', '#00ff88', '#ff4d4d', '#ff9f43', '#a29bfe', '#fab1a0', '#00cec9', '#ffeaa7']
 
-                                return Object.entries(totals).map(([catId, amount], index) => {
-                                  const percentage = (amount as number) / total
-                                  const angle = percentage * 360
-                                  const endAngle = startAngle + angle
+                                  return Object.entries(totals).map(([catId, amount], index) => {
+                                    const percentage = (amount as number) / total
+                                    const angle = percentage * 360
+                                    const endAngle = startAngle + angle
 
-                                  const x1 = 50 + 40 * Math.cos(Math.PI * (startAngle - 90) / 180)
-                                  const y1 = 50 + 40 * Math.sin(Math.PI * (startAngle - 90) / 180)
-                                  const x2 = 50 + 40 * Math.cos(Math.PI * (endAngle - 90) / 180)
-                                  const y2 = 50 + 40 * Math.sin(Math.PI * (endAngle - 90) / 180)
+                                    const x1 = 50 + 40 * Math.cos(Math.PI * (startAngle - 90) / 180)
+                                    const y1 = 50 + 40 * Math.sin(Math.PI * (startAngle - 90) / 180)
+                                    const x2 = 50 + 40 * Math.cos(Math.PI * (endAngle - 90) / 180)
+                                    const y2 = 50 + 40 * Math.sin(Math.PI * (endAngle - 90) / 180)
 
-                                  const largeArcFlag = angle > 180 ? 1 : 0
-                                  const pathData = `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`
+                                    const largeArcFlag = angle > 180 ? 1 : 0
+                                    const pathData = `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`
 
-                                  startAngle += angle
+                                    startAngle += angle
 
-                                  const category = categories.find(c => c.id === catId)
-                                  const name = lang === 'ja' ? category?.name_ja : category?.name_zh
+                                    const category = categories.find(c => c.id === catId)
+                                    const name = lang === 'ja' ? category?.name_ja : category?.name_zh
 
-                                  return (
-                                    <motion.path
-                                      key={catId}
-                                      d={pathData}
-                                      fill={colors[index % colors.length]}
-                                      stroke="var(--bg)"
-                                      strokeWidth="2"
-                                      initial={{ pathLength: 0, opacity: 0 }}
-                                      animate={{ pathLength: 1, opacity: 1 }}
-                                      transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 + (index * 0.05) }}
-                                    >
-                                      <title>{name}: {Number(amount).toLocaleString()}</title>
-                                    </motion.path>
-                                  )
-                                })
-                              })()}
-                            </motion.svg>
+                                    return (
+                                      <motion.path
+                                        key={catId}
+                                        d={pathData}
+                                        fill={colors[index % colors.length]}
+                                        stroke="var(--bg)"
+                                        strokeWidth="2"
+                                        initial={{ pathLength: 0, opacity: 0 }}
+                                        animate={{ pathLength: 1, opacity: 1 }}
+                                        transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 + (index * 0.05) }}
+                                      >
+                                        <title>{name}: {Number(amount).toLocaleString()}</title>
+                                      </motion.path>
+                                    )
+                                  })
+                                })()}
+                              </svg>
+                            </motion.div>
                             <motion.div
                               className="chart-center"
                               initial={{ scale: 0, opacity: 0, x: "-50%", y: "-50%" }}
