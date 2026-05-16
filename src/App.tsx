@@ -271,6 +271,7 @@ function App() {
 
   const handleStart = (selectedType: 'income' | 'expense') => {
     setType(selectedType)
+    setTransactionDate(getJSTDateTimeString(new Date()))
     setView('entry')
   }
 
