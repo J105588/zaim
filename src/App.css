@@ -818,7 +818,7 @@ body {
 /* Misc */
 .lang-toggle {
   position: absolute;
-  bottom: 20px;
+  top: calc(20px + env(safe-area-inset-top));
   right: 20px;
   background: var(--glass);
   border: 1px solid rgba(255, 255, 255, 0.1);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, type Category, type Transaction } from './lib/supabase'
 import { useI18n } from './hooks/useI18n'
 import * as Icons from 'lucide-react'
@@ -12,18 +12,9 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 // --- JST Utilities ---
 // 日本時間の現在日時文字列 (YYYY-MM-DDThh:mm) を取得
 const getJSTDateTimeString = (date: Date) => {
-  const formatter = new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
-  const parts = formatter.formatToParts(date);
-  const getPart = (type: string) => parts.find(p => p.type === type)?.value;
-  return `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}`;
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstDate = new Date(date.getTime() + jstOffset);
+  return jstDate.toISOString().slice(0, 16);
 };
 
 // YYYY-MM-DDThh:mm を JST として解釈して Date オブジェクトにする
@@ -67,12 +58,16 @@ const getJSTYearMonth = (date: Date) => {
 // ---------------------
 
 function App() {
+  const isDraggingRef = useRef(false)
+
   useRegisterSW({
     onRegistered(r: ServiceWorkerRegistration | undefined) {
       // Periodic update check (once every 10 minutes)
-      r && setInterval(() => {
-        r.update()
-      }, 10 * 60 * 1000)
+      if (r) {
+        setInterval(() => {
+          r.update()
+        }, 10 * 60 * 1000)
+      }
     },
   })
 
@@ -193,7 +188,8 @@ function App() {
 
       if (error) throw error
       if (data) {
-        const total = data.reduce((acc: number, item: any) => {
+        const typedData = data as { amount: number; type: 'income' | 'expense' }[]
+        const total = typedData.reduce((acc: number, item) => {
           return item.type === 'income' ? acc + Number(item.amount) : acc - Number(item.amount)
         }, 0)
         setBalance(total)
@@ -248,7 +244,7 @@ function App() {
         .order('created_at', { ascending: false })
 
       if (error) console.error(error)
-      else setHistory(data as any || [])
+      else setHistory((data as unknown as Transaction[]) || [])
     } finally {
       setIsFetchingHistory(false)
     }
@@ -442,7 +438,7 @@ function App() {
   }
 
   const renderIcon = (iconName: string) => {
-    const IconComponent = (Icons as any)[iconName] || Icons.HelpCircle
+    const IconComponent = (Icons as unknown as Record<string, React.ComponentType<{ size?: number }>>)[iconName] || Icons.HelpCircle
     return <IconComponent size={20} />
   }
 
@@ -822,7 +818,8 @@ function App() {
                                 dragElastic={{ left: 0.1, right: 0.02 }}
                                 animate={{ x: isOpen ? -100 : 0 }}
                                 transition={{ type: 'spring', stiffness: 350, damping: 35 }}
-                                onDragStart={() => {
+                               onDragStart={() => {
+                                  isDraggingRef.current = true;
                                   setActiveSwipeId(item.id);
                                 }}
                                 onDragEnd={(_, info) => {
@@ -831,8 +828,12 @@ function App() {
                                   } else {
                                     setActiveSwipeId(null);
                                   }
+                                  setTimeout(() => {
+                                    isDraggingRef.current = false;
+                                  }, 50);
                                 }}
                                 onClick={() => {
+                                  if (isDraggingRef.current) return;
                                   if (isOpen) {
                                     setActiveSwipeId(null);
                                   } else {
@@ -915,14 +916,14 @@ function App() {
                               >
                                 {(() => {
                                   const expenses = history.filter(item => item.type === 'expense')
-                                  const totals = expenses.reduce((acc: any, item: any) => {
+                                  const totals = expenses.reduce((acc: Record<string, number>, item: Transaction) => {
                                     const catId = item.category_id || 'others'
                                     const amount = Number(item.amount)
                                     acc[catId] = (acc[catId] || 0) + amount
                                     return acc
                                   }, {})
 
-                                  const total = Object.values(totals).reduce((a: any, b: any) => a + b, 0) as number
+                                  const total = Object.values(totals).reduce((a: number, b: number) => a + b, 0)
                                   let startAngle = 0
                                   const colors = ['#00d2ff', '#00ff88', '#ff4d4d', '#ff9f43', '#a29bfe', '#fab1a0', '#00cec9', '#ffeaa7']
 
@@ -983,13 +984,13 @@ function App() {
                           <div className="chart-legend">
                             {(() => {
                               const expenses = history.filter(item => item.type === 'expense')
-                              const totals = expenses.reduce((acc: any, item: any) => {
+                              const totals = expenses.reduce((acc: Record<string, number>, item: Transaction) => {
                                 const catId = item.category_id || 'others'
                                 const amount = Number(item.amount)
                                 acc[catId] = (acc[catId] || 0) + amount
                                 return acc
                               }, {})
-                              const total = Object.values(totals).reduce((a: any, b: any) => a + b, 0) as number
+                              const total = Object.values(totals).reduce((a: number, b: number) => a + b, 0)
                               const colors = ['#00d2ff', '#00ff88', '#ff4d4d', '#ff9f43', '#a29bfe', '#fab1a0', '#00cec9', '#ffeaa7']
 
                               return Object.entries(totals)
